@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getAllAccountsInsights, CampaignInsight } from '../meta/insights';
-import { pauseCampaign, activateCampaign, scaleBudget } from '../meta/campaigns';
+import { pauseCampaign, scaleBudget } from '../meta/campaigns';
 import { logAction, saveSnapshot } from '../db/postgres';
 import { sendWhatsApp } from '../whatsapp';
 
@@ -11,15 +11,20 @@ const BUDGET_MAX = parseFloat(process.env.AGENT_BUDGET_MAX || '500');
 const BUDGET_SCALE = parseFloat(process.env.AGENT_BUDGET_SCALE || '1.2');
 const MIN_SPEND = parseFloat(process.env.AGENT_MIN_SPEND || '5');
 
-const TOOLS: Anthropic.Tool[] = [
+type Tool = Anthropic.Messages.Tool;
+type MessageParam = Anthropic.Messages.MessageParam;
+type ToolResultBlockParam = Anthropic.Messages.ToolResultBlockParam;
+type ToolUseBlock = Anthropic.Messages.ToolUseBlock;
+
+const TOOLS: Tool[] = [
   {
     name: 'pause_campaign',
     description: 'Pausa uma campanha com baixa performance ou audiência saturada.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        campaign_id: { type: 'string', description: 'ID da campanha' },
-        reason: { type: 'string', description: 'Motivo claro e objetivo da pausa' },
+        campaign_id: { type: 'string' as const, description: 'ID da campanha' },
+        reason: { type: 'string' as const, description: 'Motivo claro e objetivo da pausa' },
       },
       required: ['campaign_id', 'reason'],
     },
@@ -30,9 +35,9 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        campaign_id: { type: 'string', description: 'ID da campanha' },
-        new_budget_brl: { type: 'number', description: 'Novo budget diário em reais' },
-        reason: { type: 'string', description: 'Por que essa campanha merece escalar' },
+        campaign_id: { type: 'string' as const, description: 'ID da campanha' },
+        new_budget_brl: { type: 'number' as const, description: 'Novo budget diário em reais' },
+        reason: { type: 'string' as const, description: 'Por que essa campanha merece escalar' },
       },
       required: ['campaign_id', 'new_budget_brl', 'reason'],
     },
@@ -43,7 +48,7 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        message: { type: 'string', description: 'Mensagem do alerta' },
+        message: { type: 'string' as const, description: 'Mensagem do alerta' },
       },
       required: ['message'],
     },
@@ -54,8 +59,8 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        campaign_id: { type: 'string' },
-        observation: { type: 'string', description: 'Observação sobre o estado atual' },
+        campaign_id: { type: 'string' as const },
+        observation: { type: 'string' as const, description: 'Observação sobre o estado atual' },
       },
       required: ['campaign_id', 'observation'],
     },
@@ -157,60 +162,53 @@ ${JSON.stringify(summary, null, 2)}
 
 Analise cada campanha e tome as ações necessárias. Para cada uma, use uma das ferramentas: pause_campaign, scale_budget, send_alert ou do_nothing.`;
 
-  const messages: Anthropic.MessageParam[] = [
+  const messages: MessageParam[] = [
     { role: 'user', content: userMessage }
   ];
 
   const actionLog: string[] = [];
 
-  // Loop agêntico — Claude pode chamar múltiplas ferramentas
   while (true) {
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-7',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: systemPrompt,
       tools: TOOLS,
       messages,
     });
 
-    // Adiciona resposta do assistente ao histórico
     messages.push({ role: 'assistant', content: response.content });
 
     if (response.stop_reason === 'end_turn') break;
     if (response.stop_reason !== 'tool_use') break;
 
-    // Executa todas as ferramentas chamadas nesta rodada
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    const toolResults: ToolResultBlockParam[] = [];
 
     for (const block of response.content) {
       if (block.type !== 'tool_use') continue;
 
-      const input = block.input as ToolInput;
-      console.log(`[agent] chamando ${block.name}:`, input);
+      const toolBlock = block as ToolUseBlock;
+      const input = toolBlock.input as ToolInput;
+      console.log(`[agent] chamando ${toolBlock.name}:`, input);
 
-      const result = await executeTool(block.name, input, campaigns);
+      const result = await executeTool(toolBlock.name, input, campaigns);
 
-      // Monta log legível
-      if (block.name === 'pause_campaign') {
+      if (toolBlock.name === 'pause_campaign') {
         actionLog.push(`⛔ *Pausei campanha*\nMotivo: ${input.reason}`);
-      } else if (block.name === 'scale_budget') {
+      } else if (toolBlock.name === 'scale_budget') {
         actionLog.push(`📈 *Escalei budget*\nNovo: R$${input.new_budget_brl}\nMotivo: ${input.reason}`);
-      } else if (block.name === 'send_alert') {
-        // já enviado
       }
 
       toolResults.push({
         type: 'tool_result',
-        tool_use_id: block.id,
+        tool_use_id: toolBlock.id,
         content: result,
       });
     }
 
-    // Devolve os resultados das ferramentas para Claude continuar
     messages.push({ role: 'user', content: toolResults });
   }
 
-  // Relatório final no WhatsApp
   if (actionLog.length > 0) {
     const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const report = `🤖 *Meta Ads Agent*\n${now}\n\n${actionLog.join('\n\n---\n\n')}\n\n_${actionLog.length} ação(ões) executada(s)_`;

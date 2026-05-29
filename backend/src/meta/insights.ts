@@ -38,8 +38,9 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
 
   return (campaignsRes.data || []).map((c: Record<string, string>) => {
     const ins = insightsMap[c.id] || {};
-    const actions: { action_type: string; value: string }[] = (ins as Record<string, { action_type: string; value: string }[]>).actions || [];
-    const costPerAction: { action_type: string; value: string }[] = (ins as Record<string, { action_type: string; value: string }[]>).cost_per_action_type || [];
+    const insAny = ins as Record<string, unknown>;
+    const actions: { action_type: string; value: string }[] = (insAny.actions as { action_type: string; value: string }[]) || [];
+    const costPerAction: { action_type: string; value: string }[] = (insAny.cost_per_action_type as { action_type: string; value: string }[]) || [];
 
     const leads = actions.find(a =>
       a.action_type === 'lead' ||

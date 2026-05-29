@@ -14,7 +14,7 @@ export function startCron(): void {
   });
 
   // Relatório diário às 8h (Brasília)
-  cron.schedule('0 8 * * *', { timezone: 'America/Sao_Paulo' }, async () => {
+  cron.schedule('0 8 * * *', async () => {
     try {
       await sendDailyReport();
     } catch (err) {
