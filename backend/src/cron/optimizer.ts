@@ -4,8 +4,8 @@ import { getAllAccountsInsights } from '../meta/insights';
 import { sendWhatsApp } from '../whatsapp';
 
 export function startCron(): void {
-  // Ciclo principal — a cada hora das 05h às 16h BRT (08h–19h UTC)
-  cron.schedule('0 8-19 * * *', async () => {
+  // Ciclo principal — a cada 30min das 05h às 16h BRT (08h–19h UTC)
+  cron.schedule('*/30 8-19 * * *', async () => {
     try {
       await runOptimizer();
     } catch (err) {
@@ -22,7 +22,7 @@ export function startCron(): void {
     }
   });
 
-  console.log('[cron] agente ativo — 05h-16h BRT a cada hora + relatório às 16h');
+  console.log('[cron] agente ativo — 05h-16h BRT a cada 30min + relatório às 16h');
 }
 
 async function sendDailyReport(): Promise<void> {

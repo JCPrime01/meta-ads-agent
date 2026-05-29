@@ -21,13 +21,13 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
   const [campaignsRes, insightsRes] = await Promise.all([
     metaGet(`/${accountId}/campaigns`, {
       fields: 'id,name,status,daily_budget,lifetime_budget,effective_status',
-      limit: '50',
+      limit: '200',
     }),
     metaGet(`/${accountId}/insights`, {
       fields: 'campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,actions,cost_per_action_type,frequency,reach',
       date_preset: 'today',
       level: 'campaign',
-      limit: '50',
+      limit: '200',
     }),
   ]);
 
