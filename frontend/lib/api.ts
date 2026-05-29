@@ -1,4 +1,4 @@
-const BASE = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002').replace(/\/$/, '');
+const BASE = '/api/backend';
 
 export interface Campaign {
   campaign_id: string;
@@ -27,14 +27,22 @@ export interface AgentAction {
   created_at: string;
 }
 
+export const ACCOUNT_NAMES: Record<string, string> = {
+  act_1095859619406442: 'CA 01',
+  act_1628949641648813: 'CA 02',
+  act_1520081442881968: 'CA 03',
+  act_1430948701654012: 'CA 04',
+  act_1322469786598233: 'CA 05',
+};
+
 export async function getCampaigns(): Promise<Campaign[]> {
-  const r = await fetch(`${BASE}/campaigns`, { next: { revalidate: 60 } });
+  const r = await fetch(`${BASE}/campaigns`, { cache: 'no-store' });
   if (!r.ok) throw new Error('Erro ao buscar campanhas');
   return r.json();
 }
 
 export async function getActions(): Promise<AgentAction[]> {
-  const r = await fetch(`${BASE}/insights/actions`, { next: { revalidate: 30 } });
+  const r = await fetch(`${BASE}/insights/actions`, { cache: 'no-store' });
   if (!r.ok) throw new Error('Erro ao buscar ações');
   return r.json();
 }

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Campaign, pauseCampaign, activateCampaign, getDiagnosis } from '@/lib/api';
-import { Pause, Play, Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Pause, Play, Zap } from 'lucide-react';
 
 interface Props {
   campaign: Campaign;
@@ -45,67 +45,78 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
     }
   }
 
-  const name = c.campaign_name.replace(/^\S+\s+/g, '').slice(0, 55);
+  const name = c.campaign_name.replace(/^\S+\s+/g, '').slice(0, 60);
 
   return (
-    <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1 min-w-0">
-          <span className="text-sm font-bold truncate text-white/90">{name}</span>
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badge.color}`}>
-              {badge.label}
-            </span>
-            <span className="text-[10px] text-white/30">R${c.daily_budget.toFixed(0)}/dia</span>
+    <>
+      <tr className="border-b border-white/5 hover:bg-white/[0.03] transition-colors group">
+        <td className="py-3 px-4 max-w-[280px]">
+          <span className="text-sm text-white/90 truncate block" title={c.campaign_name}>{name}</span>
+        </td>
+        <td className="py-3 px-4 whitespace-nowrap">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badge.color}`}>
+            {badge.label}
+          </span>
+        </td>
+        <td className="py-3 px-4 text-right">
+          <span className={`text-sm font-bold tabular-nums ${c.leads > 0 ? 'text-green-400' : 'text-white/30'}`}>
+            {c.leads > 0 ? c.leads : '—'}
+          </span>
+        </td>
+        <td className="py-3 px-4 text-right">
+          <span className={`text-sm font-bold tabular-nums ${c.cpl > 20 ? 'text-red-400' : c.cpl > 0 ? 'text-white/80' : 'text-white/30'}`}>
+            {c.cpl > 0 ? `R$${c.cpl.toFixed(2)}` : '—'}
+          </span>
+        </td>
+        <td className="py-3 px-4 text-right text-sm tabular-nums text-white/50">
+          R${c.daily_budget.toFixed(0)}
+        </td>
+        <td className="py-3 px-4 text-right text-sm font-bold tabular-nums text-white/90">
+          R${c.spend.toFixed(2)}
+        </td>
+        <td className="py-3 px-4 text-right">
+          <span className={`text-sm tabular-nums ${c.ctr < 0.8 && c.ctr > 0 ? 'text-yellow-400' : 'text-white/50'}`}>
+            {c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}
+          </span>
+        </td>
+        <td className="py-3 px-4 text-right text-sm tabular-nums text-white/50">
+          {c.cpc > 0 ? `R$${c.cpc.toFixed(2)}` : '—'}
+        </td>
+        <td className="py-3 px-4">
+          <div className="flex gap-1.5 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={handleDiagnose}
+              disabled={loading}
+              className="p-1.5 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 transition-colors"
+              title="Diagnóstico IA"
+            >
+              <Zap size={13} />
+            </button>
+            <button
+              onClick={toggleStatus}
+              disabled={loading}
+              className={`p-1.5 rounded-lg transition-colors ${
+                c.status === 'ACTIVE'
+                  ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
+                  : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
+              }`}
+              title={c.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}
+            >
+              {c.status === 'ACTIVE' ? <Pause size={13} /> : <Play size={13} />}
+            </button>
           </div>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <button
-            onClick={handleDiagnose}
-            disabled={loading}
-            className="p-2 rounded-xl bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 transition-colors"
-            title="Diagnóstico IA"
-          >
-            <Zap size={14} />
-          </button>
-          <button
-            onClick={toggleStatus}
-            disabled={loading}
-            className={`p-2 rounded-xl transition-colors ${
-              c.status === 'ACTIVE'
-                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
-                : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
-            }`}
-            title={c.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}
-          >
-            {c.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-2">
-        <Metric label="Gasto" value={`R$${c.spend.toFixed(2)}`} />
-        <Metric label="CPL" value={c.cpl > 0 ? `R$${c.cpl.toFixed(2)}` : '—'} highlight={c.cpl > 20 ? 'bad' : c.cpl > 0 && c.cpl < 10 ? 'good' : 'neutral'} />
-        <Metric label="CTR" value={c.ctr > 0 ? `${c.ctr.toFixed(1)}%` : '—'} highlight={c.ctr < 0.8 && c.ctr > 0 ? 'bad' : 'neutral'} />
-        <Metric label="Leads" value={String(c.leads)} highlight={c.leads > 0 ? 'good' : 'neutral'} />
-      </div>
-
+        </td>
+      </tr>
       {showDiag && diagnosis && (
-        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-100/80 leading-relaxed">
-          <span className="text-yellow-400 font-bold">🔍 Diagnóstico IA</span><br />
-          {diagnosis}
-        </div>
+        <tr>
+          <td colSpan={9} className="pb-2 px-4">
+            <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-100/80 leading-relaxed">
+              <span className="text-yellow-400 font-bold">🔍 Diagnóstico IA</span><br />
+              {diagnosis}
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
-  );
-}
-
-function Metric({ label, value, highlight = 'neutral' }: { label: string; value: string; highlight?: 'good' | 'bad' | 'neutral' }) {
-  const colors = { good: 'text-green-400', bad: 'text-red-400', neutral: 'text-white/70' };
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] text-white/30 uppercase tracking-wider">{label}</span>
-      <span className={`text-sm font-bold ${colors[highlight]}`}>{value}</span>
-    </div>
+    </>
   );
 }

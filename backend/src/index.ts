@@ -5,6 +5,7 @@ import { migrate } from './db/postgres';
 import { startCron } from './cron/optimizer';
 import campaignsRouter from './routes/campaigns';
 import insightsRouter from './routes/insights';
+import { requireApiSecret } from './middleware/auth';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -26,6 +27,7 @@ app.use(cors({
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.use(requireApiSecret);
 app.use('/campaigns', campaignsRouter);
 app.use('/insights', insightsRouter);
 
