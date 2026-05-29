@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002';
+const BASE = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3002').replace(/\/$/, '');
 
 export interface Campaign {
   campaign_id: string;
