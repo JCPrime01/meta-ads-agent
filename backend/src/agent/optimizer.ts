@@ -6,15 +6,13 @@ import { sendWhatsApp } from '../whatsapp';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const CPL_MAX = parseFloat(process.env.AGENT_CPL_MAX || '20');
 const BUDGET_MAX = parseFloat(process.env.AGENT_BUDGET_MAX || '500');
-const BUDGET_SCALE = parseFloat(process.env.AGENT_BUDGET_SCALE || '1.2');
-const MIN_SPEND = parseFloat(process.env.AGENT_MIN_SPEND || '5');
+const MIN_SPEND  = parseFloat(process.env.AGENT_MIN_SPEND  || '5');
 
-type Tool = Anthropic.Messages.Tool;
-type MessageParam = Anthropic.Messages.MessageParam;
+type Tool                = Anthropic.Messages.Tool;
+type MessageParam        = Anthropic.Messages.MessageParam;
 type ToolResultBlockParam = Anthropic.Messages.ToolResultBlockParam;
-type ToolUseBlock = Anthropic.Messages.ToolUseBlock;
+type ToolUseBlock        = Anthropic.Messages.ToolUseBlock;
 
 const TOOLS: Tool[] = [
   {
@@ -36,7 +34,7 @@ const TOOLS: Tool[] = [
       type: 'object' as const,
       properties: {
         campaign_id: { type: 'string' as const, description: 'ID da campanha' },
-        new_budget_brl: { type: 'number' as const, description: 'Novo budget diário em reais' },
+        new_budget_brl: { type: 'number' as const, description: 'Novo budget diário em reais (respeite o teto máximo informado)' },
         reason: { type: 'string' as const, description: 'Por que essa campanha merece escalar' },
       },
       required: ['campaign_id', 'new_budget_brl', 'reason'],
@@ -80,13 +78,14 @@ async function executeTool(name: string, input: ToolInput, campaigns: CampaignIn
     case 'pause_campaign': {
       const c = campaigns.find(x => x.campaign_id === input.campaign_id);
       await pauseCampaign(input.campaign_id!);
-      await logAction(input.campaign_id!, 'PAUSE', input.reason!, c?.cpl ?? 0, CPL_MAX);
+      await logAction(input.campaign_id!, 'PAUSE', input.reason!, c?.cpl ?? 0, 0);
       return `✅ Campanha ${input.campaign_id} pausada.`;
     }
     case 'scale_budget': {
       const c = campaigns.find(x => x.campaign_id === input.campaign_id);
       if (!c) return 'Campanha não encontrada.';
-      const actual = await scaleBudget(input.campaign_id!, c.daily_budget, BUDGET_SCALE, Math.min(input.new_budget_brl!, BUDGET_MAX));
+      const newBudget = Math.min(input.new_budget_brl!, BUDGET_MAX);
+      const actual = await scaleBudget(input.campaign_id!, c.daily_budget, 1, newBudget);
       await logAction(input.campaign_id!, 'SCALE_UP', input.reason!, c.cpl, c.daily_budget);
       return `✅ Budget escalado para R$${actual.toFixed(2)}.`;
     }
@@ -119,7 +118,6 @@ export async function runOptimizer(): Promise<void> {
     id: c.campaign_id,
     nome: c.campaign_name.slice(0, 60),
     conta: c.account_id,
-    status: c.status,
     budget_diario_brl: c.daily_budget,
     gasto_hoje_brl: c.spend,
     leads: c.leads,
@@ -132,40 +130,39 @@ export async function runOptimizer(): Promise<void> {
     alcance: c.reach,
   }));
 
-  const systemPrompt = `Você é um especialista sênior em tráfego pago Meta Ads (Facebook/Instagram), com foco em captação de leads para apostas esportivas no Brasil.
+  const systemPrompt = `Você é um gestor sênior de tráfego pago Meta Ads, especializado em captação de leads para apostas esportivas no Brasil.
 
-Seu trabalho é analisar as campanhas ativas e tomar as melhores decisões para maximizar leads com o menor CPL possível.
+Você recebe os dados de todas as campanhas ativas a cada 30 minutos e decide autonomamente o que fazer com cada uma.
 
-**Regras operacionais:**
-- CPL máximo aceitável: R$${CPL_MAX}
-- Budget máximo por campanha: R$${BUDGET_MAX}/dia
-- Fator de escala: ${BUDGET_SCALE}x (ex: R$70 → R$84)
+**Sua missão:** maximizar o volume de leads com o menor custo por lead (CPL) possível, dentro do orçamento disponível.
+
+**Como tomar decisões:**
+Analise o conjunto como um portfólio. Não existem thresholds fixos — use seu julgamento com base nos dados reais:
+- Compare as campanhas entre si: identifique as que estão claramente acima ou abaixo da média
+- Campanhas muito acima do CPL médio do grupo, sem leads, com frequência alta ou CTR muito baixo → candidatas a pausa
+- Campanhas com CPL bem abaixo da média, gerando leads consistentemente → candidatas a escala
+- Campanhas com pouco gasto ou em fase de aprendizado → aguarde mais dados antes de agir
+
+**Diagnóstico:**
+- CTR baixo (< 0.8%): criativo fraco, não gera cliques
+- CTR alto + CPL alto: landing page não converte
+- Frequência > 4: audiência saturada
+- Sem leads após gasto relevante: revisar criativo e público
+
+**Limites de segurança:**
+- Budget máximo por campanha: R$${BUDGET_MAX}/dia — nunca proponha acima disso
 - Só avalie campanhas com gasto ≥ R$${MIN_SPEND} (dados insuficientes abaixo disso)
+- Use send_alert apenas para situações críticas que exigem decisão humana imediata
 
-**Critérios de diagnóstico:**
-- CPL alto + CTR baixo (<0.8%) → problema no criativo (não está atraindo cliques)
-- CPL alto + CTR alto (>1.5%) → problema na landing page (clica mas não converte)
-- Frequência > 4 → audiência saturada (mesmas pessoas vendo várias vezes)
-- CPL > R$${CPL_MAX} → pausar
-- CPL < R$${CPL_MAX / 2} e budget < R$${BUDGET_MAX} → escalar
-
-**Contexto importante:**
-- Campanhas nos primeiros 1-2 dias podem ter CPL alto por fase de aprendizado — tenha bom senso
-- Priorize escalar o que está funcionando antes de pausar o que não está
-- Use send_alert apenas para situações críticas que exigem ação humana imediata
-
-Analise todas as campanhas e use as ferramentas disponíveis para cada uma.`;
+Para cada campanha, use uma das ferramentas disponíveis.`;
 
   const userMessage = `Aqui estão as ${evaluable.length} campanhas ativas com dados de hoje:
 
 ${JSON.stringify(summary, null, 2)}
 
-Analise cada campanha e tome as ações necessárias. Para cada uma, use uma das ferramentas: pause_campaign, scale_budget, send_alert ou do_nothing.`;
+Analise o portfólio completo e tome as ações necessárias para cada campanha.`;
 
-  const messages: MessageParam[] = [
-    { role: 'user', content: userMessage }
-  ];
-
+  const messages: MessageParam[] = [{ role: 'user', content: userMessage }];
   const actionLog: string[] = [];
 
   while (true) {
@@ -199,11 +196,7 @@ Analise cada campanha e tome as ações necessárias. Para cada uma, use uma das
         actionLog.push(`📈 *Escalei budget*\nNovo: R$${input.new_budget_brl}\nMotivo: ${input.reason}`);
       }
 
-      toolResults.push({
-        type: 'tool_result',
-        tool_use_id: toolBlock.id,
-        content: result,
-      });
+      toolResults.push({ type: 'tool_result', tool_use_id: toolBlock.id, content: result });
     }
 
     messages.push({ role: 'user', content: toolResults });

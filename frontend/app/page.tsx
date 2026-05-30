@@ -41,8 +41,9 @@ export default function Home() {
   const active = filtered.filter(c => c.status === 'ACTIVE');
   const paused = filtered.filter(c => c.status !== 'ACTIVE');
 
-  const totalSpend = active.reduce((s, c) => s + c.spend, 0);
-  const totalLeads = active.reduce((s, c) => s + c.leads, 0);
+  // totalSpend e totalLeads incluem pausadas (pode ter gasto antes de pausar hoje)
+  const totalSpend = filtered.reduce((s, c) => s + c.spend, 0);
+  const totalLeads = filtered.reduce((s, c) => s + c.leads, 0);
   const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
   const avgCtr = active.length > 0 ? active.reduce((s, c) => s + c.ctr, 0) / active.length : 0;
 
