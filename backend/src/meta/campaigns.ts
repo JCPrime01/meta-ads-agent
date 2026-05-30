@@ -4,6 +4,14 @@ export async function pauseCampaign(campaignId: string): Promise<void> {
   await metaPost(`/${campaignId}`, { status: 'PAUSED' });
 }
 
+export async function pauseAdset(adsetId: string): Promise<void> {
+  await metaPost(`/${adsetId}`, { status: 'PAUSED' });
+}
+
+export async function pauseAd(adId: string): Promise<void> {
+  await metaPost(`/${adId}`, { status: 'PAUSED' });
+}
+
 export async function activateCampaign(campaignId: string): Promise<void> {
   await metaPost(`/${campaignId}`, { status: 'ACTIVE' });
 }
