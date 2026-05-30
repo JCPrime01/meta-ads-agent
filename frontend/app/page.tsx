@@ -16,9 +16,9 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     try {
-      const [c, a] = await Promise.all([getCampaigns(), getActions()]);
+      const [c, a] = await Promise.all([getCampaigns(force), getActions()]);
       setCampaigns(c);
       setActions(a);
     } finally {
@@ -31,7 +31,7 @@ export default function Home() {
 
   function refresh() {
     setRefreshing(true);
-    load();
+    load(true);
   }
 
   const filtered = accountFilter === ALL_ACCOUNTS

@@ -35,8 +35,9 @@ export const ACCOUNT_NAMES: Record<string, string> = {
   act_1322469786598233: 'CA 05',
 };
 
-export async function getCampaigns(): Promise<Campaign[]> {
-  const r = await fetch(`${BASE}/campaigns`, { cache: 'no-store' });
+export async function getCampaigns(force = false): Promise<Campaign[]> {
+  const url = force ? `${BASE}/campaigns?force=1` : `${BASE}/campaigns`;
+  const r = await fetch(url, { cache: 'no-store' });
   if (!r.ok) throw new Error('Erro ao buscar campanhas');
   return r.json();
 }
