@@ -70,12 +70,21 @@ export async function updateBudget(campaignId: string, budget: number): Promise<
   });
 }
 
-export async function getAgentStatus(): Promise<{ enabled: boolean }> {
+export async function getAgentStatus(): Promise<{ enabled: boolean; accounts: string[] }> {
   const r = await fetch(`${BASE}/agent/status`, { cache: 'no-store' });
   return r.json();
 }
 
-export async function toggleAgent(): Promise<{ enabled: boolean }> {
+export async function toggleAgent(): Promise<{ enabled: boolean; accounts: string[] }> {
   const r = await fetch(`${BASE}/agent/toggle`, { method: 'POST' });
+  return r.json();
+}
+
+export async function updateAgentAccounts(accounts: string[]): Promise<{ enabled: boolean; accounts: string[] }> {
+  const r = await fetch(`${BASE}/agent/accounts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accounts }),
+  });
   return r.json();
 }

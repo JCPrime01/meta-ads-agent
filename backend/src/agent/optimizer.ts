@@ -3,18 +3,12 @@ import { getAllAccountsInsights, getAllAccountsHierarchical, CampaignInsight } f
 import { pauseCampaign, pauseAdset, pauseAd, scaleBudget, updateDailyBudget } from '../meta/campaigns';
 import { logAction, saveSnapshot, getRecentActions } from '../db/postgres';
 import { sendWhatsApp } from '../whatsapp';
+import { getAgentAccounts } from '../routes/agent';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const BUDGET_MAX = parseFloat(process.env.AGENT_BUDGET_MAX || '500');
-const MIN_SPEND  = parseFloat(process.env.AGENT_MIN_SPEND  || '20');
-
-// Thresholds fixos definidos pelo gestor
-const CPL_PAUSE_CAMPAIGN  = 6.50;
-const CPL_SCALE_CAMPAIGN  = 5.50;
-const CPL_PAUSE_ADSET     = 5.00;
-const CPL_PAUSE_AD        = 4.50;
-const CTR_PAUSE_AD        = 0.50; // %
+const MIN_SPEND   = parseFloat(process.env.AGENT_MIN_SPEND   || '20');
 
 type Tool                 = Anthropic.Messages.Tool;
 type MessageParam         = Anthropic.Messages.MessageParam;
@@ -24,7 +18,7 @@ type ToolUseBlock         = Anthropic.Messages.ToolUseBlock;
 const TOOLS: Tool[] = [
   {
     name: 'pause_campaign',
-    description: `Pausa uma campanha. Use quando CPL > R$${CPL_PAUSE_CAMPAIGN} com gasto suficiente.`,
+    description: 'Pausa uma campanha. Use quando há dados suficientes e a performance está claramente ruim sem tendência de melhora.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -36,7 +30,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'scale_budget',
-    description: `Aumenta o budget diário. Use quando CPL ≤ R$${CPL_SCALE_CAMPAIGN} com leads consistentes. Máximo R$${BUDGET_MAX}/dia.`,
+    description: `Aumenta o budget diário. Use quando a campanha está convertendo bem e há margem para escalar com segurança. Máximo R$${BUDGET_MAX}/dia.`,
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -49,7 +43,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'reduce_budget',
-    description: `Reduz o budget diário. Use quando CPL está entre R$${CPL_SCALE_CAMPAIGN} e R$${CPL_PAUSE_CAMPAIGN} e a campanha está gastando muito.`,
+    description: 'Reduz o budget diário. Use quando a campanha está gastando mas com CPL elevado — reduzir dá mais tempo pra otimizar sem pausar.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -62,7 +56,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'pause_adset',
-    description: `Pausa um conjunto de anúncios. Use quando CPL do conjunto > R$${CPL_PAUSE_ADSET} com gasto suficiente.`,
+    description: 'Pausa um conjunto de anúncios. Use quando o conjunto está claramente drenando budget sem converter, com dados suficientes para ter certeza.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -75,7 +69,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'pause_ad',
-    description: `Pausa um criativo/anúncio. Use quando CPL do criativo > R$${CPL_PAUSE_AD} OU CTR < ${CTR_PAUSE_AD}% com gasto suficiente.`,
+    description: 'Pausa um criativo. Use quando o criativo está claramente com baixo engajamento (CTR muito baixo) ou CPL alto com dados suficientes.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -127,7 +121,7 @@ async function executeTool(name: string, input: ToolInput, campaigns: CampaignIn
     case 'pause_campaign': {
       const c = campaigns.find(x => x.campaign_id === input.campaign_id);
       await pauseCampaign(input.campaign_id!);
-      await logAction(input.campaign_id!, 'PAUSE_CAMPAIGN', input.reason!, c?.cpl ?? 0, CPL_PAUSE_CAMPAIGN);
+      await logAction(input.campaign_id!, 'PAUSE_CAMPAIGN', input.reason!, c?.cpl ?? 0, 0);
       return `✅ Campanha ${input.campaign_id} pausada.`;
     }
     case 'scale_budget': {
@@ -135,7 +129,7 @@ async function executeTool(name: string, input: ToolInput, campaigns: CampaignIn
       if (!c) return 'Campanha não encontrada.';
       const newBudget = Math.min(input.new_budget_brl!, BUDGET_MAX);
       const actual = await scaleBudget(input.campaign_id!, c.daily_budget, 1, newBudget);
-      await logAction(input.campaign_id!, 'SCALE_UP', input.reason!, c.cpl, CPL_SCALE_CAMPAIGN);
+      await logAction(input.campaign_id!, 'SCALE_UP', input.reason!, c.cpl, 0);
       return `✅ Budget escalado para R$${actual.toFixed(2)}.`;
     }
     case 'reduce_budget': {
@@ -148,12 +142,12 @@ async function executeTool(name: string, input: ToolInput, campaigns: CampaignIn
     }
     case 'pause_adset': {
       await pauseAdset(input.adset_id!);
-      await logAction(input.adset_id!, 'PAUSE_ADSET', input.reason!, 0, CPL_PAUSE_ADSET);
+      await logAction(input.adset_id!, 'PAUSE_ADSET', input.reason!, 0, 0);
       return `✅ Conjunto ${input.adset_id} pausado.`;
     }
     case 'pause_ad': {
       await pauseAd(input.ad_id!);
-      await logAction(input.ad_id!, 'PAUSE_AD', input.reason!, 0, CPL_PAUSE_AD);
+      await logAction(input.ad_id!, 'PAUSE_AD', input.reason!, 0, 0);
       return `✅ Criativo ${input.ad_id} pausado.`;
     }
     case 'send_alert': {
@@ -174,7 +168,12 @@ export async function runOptimizer(): Promise<void> {
   const campaigns = await getAllAccountsInsights();
   await saveSnapshot(campaigns);
 
-  const evaluable = campaigns.filter(c => c.status === 'ACTIVE' && c.spend >= MIN_SPEND);
+  const allowedAccounts = getAgentAccounts();
+  const evaluable = campaigns.filter(c =>
+    c.status === 'ACTIVE' &&
+    c.spend >= MIN_SPEND &&
+    allowedAccounts.includes(c.account_id)
+  );
 
   if (evaluable.length === 0) {
     console.log('[agent] nenhuma campanha com gasto suficiente para avaliar.');
@@ -201,6 +200,9 @@ export async function runOptimizer(): Promise<void> {
     leads: c.leads,
     cpl: c.cpl,
     ctr: c.ctr,
+    cpc: c.cpc,
+    lp_views: c.lp_views,
+    custo_por_lp_view: c.cost_per_lp_view > 0 ? +c.cost_per_lp_view.toFixed(2) : 0,
   }));
 
   const adsetSummary = adsets
@@ -213,6 +215,9 @@ export async function runOptimizer(): Promise<void> {
       leads: a.leads,
       cpl: a.cpl,
       ctr: a.ctr,
+      cpc: a.cpc,
+      lp_views: a.lp_views,
+      custo_por_lp_view: a.cost_per_lp_view > 0 ? +a.cost_per_lp_view.toFixed(2) : 0,
     }));
 
   const adSummary = ads
@@ -226,37 +231,63 @@ export async function runOptimizer(): Promise<void> {
       leads: a.leads,
       cpl: a.cpl,
       ctr: a.ctr,
+      cpc: a.cpc,
+      lp_views: a.lp_views,
+      custo_por_lp_view: a.cost_per_lp_view > 0 ? +a.cost_per_lp_view.toFixed(2) : 0,
     }));
 
-  const systemPrompt = `Você é um gestor de tráfego pago Meta Ads para apostas esportivas no Brasil.
+  const nowBRT = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const systemPrompt = `Você é um media buyer sênior especializado em Meta Ads para iGaming e apostas esportivas no Brasil, com foco em aquisição de depositantes (FTD), CPA gaming e escala agressiva no mercado LATAM.
 
-**REGRAS FIXAS — siga exatamente:**
+**Contexto do negócio:**
+- Produto: apostas esportivas / cassino online. Conversão = cadastro completo (complete_registration) que leva ao primeiro depósito (FTD).
+- CPL de referência: excelente abaixo de R$4 | bom até R$6 | preocupante acima de R$6 | crítico acima de R$8,50.
+- Budget máximo por campanha: R$${BUDGET_MAX}/dia.
+- Agora são ${nowBRT}.
 
-CAMPANHAS (nível campanha):
-- CPL > R$${CPL_PAUSE_CAMPAIGN} com gasto ≥ R$${MIN_SPEND} → pause_campaign
-- CPL ≤ R$${CPL_SCALE_CAMPAIGN} com leads → scale_budget (conservador, ex: +30% do budget atual, máx R$${BUDGET_MAX})
-- CPL entre R$${CPL_SCALE_CAMPAIGN} e R$${CPL_PAUSE_CAMPAIGN} → analise conjuntos e criativos abaixo
-- CPL = 0 (sem leads) e gasto ≥ R$${MIN_SPEND} → pause_campaign
+**Leitura de métricas como media buyer:**
+- CTR meta: > 2%. Abaixo de 1% com dados suficientes = criativo fraco ou público errado.
+- CPM alto + CTR alto = público certo, criativo funciona → escale.
+- CPM alto + CTR baixo = público errado ou criativo ruim → pause ad/adset.
+- CPC alto + lp_views baixos = problema no criativo ou no público.
+- lp_views altos + leads baixos = problema na landing page (não mexa na campanha, alerte).
+- custo_por_lp_view acima de R$1,50 = sinal de que o tráfego está caro ou o criativo não está convertendo clique.
 
-CONJUNTOS (nível adset):
-- CPL > R$${CPL_PAUSE_ADSET} com gasto ≥ R$5 → pause_adset
-- CPL = 0 e gasto ≥ R$15 → pause_adset
+**Antes de agir, pense:**
 
-CRIATIVOS (nível ad):
-- CPL > R$${CPL_PAUSE_AD} com gasto ≥ R$3 → pause_ad
-- CTR < ${CTR_PAUSE_AD}% com gasto ≥ R$3 → pause_ad
-- CPL = 0 e gasto ≥ R$10 → pause_ad
+1. **Dados suficientes?**
+   - Campanha com menos de R$30 de gasto → não pause, apenas observe.
+   - Menos de 3 leads → CPL não é confiável, não use como critério de pausa.
+   - Menos de 1.000 impressões → CTR não é confiável ainda.
 
-**Exceções:**
-- Gasto abaixo dos mínimos acima → do_nothing (dados insuficientes)
-- Não repita ação que já foi feita neste ciclo (veja histórico)
-- Budget mínimo ao reduzir: R$10`;
+2. **Foi mexida recentemente?**
+   - Escalada há menos de 1h → em aprendizado, não mexa.
+   - Mesma ação repetida no mesmo ID em menos de 2h → pare de oscilar, observe.
 
-  const userMessage = `**Histórico recente:**
+3. **Contexto do portfólio:**
+   - Maioria com CPL bom e uma com CPL ruim → caso isolado, prefira reduce_budget antes de pausar.
+   - Portfólio inteiro com CPL alto → provável problema externo (evento fraco, dia ruim) → send_alert, não pause tudo.
+   - Várias campanhas escalando bem → foque em escalar as melhores antes de cortar as piores.
+
+4. **CPL > R$8,50 com dados suficientes — analise junto:**
+   - CPC alto + CTR baixo + lp_views baixos → pause_campaign (problema de topo de funil).
+   - CPC baixo + lp_views altos + poucos leads → problema na LP → send_alert, não pause.
+   - Sem padrão claro → reduce_budget e observe mais um ciclo.
+
+**Princípios de decisão:**
+- Prefira reduce_budget a pause_campaign — reduzir dá tempo para otimizar sem matar a campanha.
+- Ao escalar: máximo +30% do budget atual por ciclo. Nunca escale mais de 2x seguidas sem verificar histórico.
+- Conjuntos ou criativos ruins dentro de campanhas boas → pause o elemento ruim, não a campanha inteira.
+- Na dúvida: do_nothing com observação clara sobre o que espera ver no próximo ciclo.
+- send_alert apenas para situações críticas que precisam de decisão humana urgente.
+- Não tome mais de 1 ação por campanha por ciclo.
+- Budget mínimo ao reduzir: R$10.`;
+
+  const userMessage = `**Histórico recente de ações:**
 ${historyText}
 
 ---
-**CAMPANHAS ATIVAS (${evaluable.length}):**
+**CAMPANHAS ATIVAS com gasto hoje (${evaluable.length}):**
 ${JSON.stringify(campaignSummary, null, 2)}
 
 **CONJUNTOS ATIVOS com gasto (${adsetSummary.length}):**
@@ -265,7 +296,7 @@ ${JSON.stringify(adsetSummary, null, 2)}
 **CRIATIVOS ATIVOS com gasto (${adSummary.length}):**
 ${JSON.stringify(adSummary, null, 2)}
 
-Aplique as regras em todos os níveis.`;
+Analise o portfólio completo e tome as decisões que um gestor experiente tomaria agora. Pense no contexto antes de agir.`;
 
   const messages: MessageParam[] = [{ role: 'user', content: userMessage }];
   const actionLog: string[] = [];

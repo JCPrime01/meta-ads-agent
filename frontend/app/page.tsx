@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent } from '@/lib/api';
+import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import CampaignRow from '@/components/CampaignRow';
 import AgentLog from '@/components/AgentLog';
@@ -16,6 +16,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
   const [agentEnabled, setAgentEnabled] = useState<boolean | null>(null);
+  const [agentAccounts, setAgentAccounts] = useState<string[]>([]);
   const [togglingAgent, setTogglingAgent] = useState(false);
 
   const load = useCallback(async (force = false) => {
@@ -32,7 +33,10 @@ export default function Home() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    getAgentStatus().then(s => setAgentEnabled(s.enabled)).catch(() => {});
+    getAgentStatus().then(s => {
+      setAgentEnabled(s.enabled);
+      setAgentAccounts(s.accounts ?? []);
+    }).catch(() => {});
   }, []);
 
   async function handleToggleAgent() {
@@ -43,6 +47,15 @@ export default function Home() {
     } finally {
       setTogglingAgent(false);
     }
+  }
+
+  async function handleToggleAccount(id: string) {
+    const next = agentAccounts.includes(id)
+      ? agentAccounts.filter(a => a !== id)
+      : [...agentAccounts, id];
+    if (next.length === 0) return;
+    setAgentAccounts(next);
+    await updateAgentAccounts(next).catch(() => {});
   }
 
   function refresh() {
@@ -184,7 +197,34 @@ export default function Home() {
 
       {/* Agent Log */}
       {tab === 'agent' && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+
+          {/* Contas gerenciadas */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2 text-xs text-white/50 font-semibold uppercase tracking-wider">
+              <Bot size={12} />
+              <span>Contas gerenciadas pelo agente</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(ACCOUNT_NAMES).map(([id, name]) => {
+                const active = agentAccounts.includes(id);
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleToggleAccount(id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                      active
+                        ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                        : 'bg-white/5 border-white/10 text-white/30 hover:text-white/50'
+                    }`}
+                  >
+                    {active ? '✓ ' : ''}{name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 text-xs text-white/30">
             <Bot size={12} />
             <span>Histórico de ações automáticas — roda a cada 30 min (05h–16h BRT)</span>

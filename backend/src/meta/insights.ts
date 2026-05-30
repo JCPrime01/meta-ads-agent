@@ -14,11 +14,15 @@ function extractLeadsAndCpl(ins: Record<string, unknown>) {
   const actions = (ins.actions as { action_type: string; value: string }[]) || [];
   const leadsAction = actions.find(a => RESULT_TYPES.includes(a.action_type));
   const leadsCount = parseInt(leadsAction?.value || '0');
+  const lpViewsAction = actions.find(a => a.action_type === 'landing_page_view');
+  const lpViews = parseInt(lpViewsAction?.value || '0');
   const spend = parseFloat((ins as Record<string, string>).spend || '0');
   return {
     spend,
     leads: leadsCount,
     cpl: leadsCount > 0 ? spend / leadsCount : 0,
+    lp_views: lpViews,
+    cost_per_lp_view: lpViews > 0 ? spend / lpViews : 0,
     impressions: parseInt((ins as Record<string, string>).impressions || '0'),
     clicks: parseInt((ins as Record<string, string>).clicks || '0'),
     ctr: parseFloat((ins as Record<string, string>).ctr || '0'),
@@ -43,6 +47,8 @@ export interface CampaignInsight {
   frequency: number;
   leads: number;
   reach: number;
+  lp_views: number;
+  cost_per_lp_view: number;
 }
 
 export interface AdsetInsight {
@@ -54,7 +60,10 @@ export interface AdsetInsight {
   leads: number;
   cpl: number;
   ctr: number;
+  cpc: number;
   impressions: number;
+  lp_views: number;
+  cost_per_lp_view: number;
 }
 
 export interface AdInsight {
@@ -67,7 +76,10 @@ export interface AdInsight {
   leads: number;
   cpl: number;
   ctr: number;
+  cpc: number;
   impressions: number;
+  lp_views: number;
+  cost_per_lp_view: number;
 }
 
 export async function getCampaignsWithInsights(accountId: string): Promise<CampaignInsight[]> {
@@ -136,7 +148,10 @@ export async function getAdsetInsights(accountId: string): Promise<AdsetInsight[
       leads: m.leads,
       cpl: m.cpl,
       ctr: m.ctr,
+      cpc: m.cpc,
       impressions: m.impressions,
+      lp_views: m.lp_views,
+      cost_per_lp_view: m.cost_per_lp_view,
     };
   });
 }
@@ -172,7 +187,10 @@ export async function getAdInsights(accountId: string): Promise<AdInsight[]> {
       leads: m.leads,
       cpl: m.cpl,
       ctr: m.ctr,
+      cpc: m.cpc,
       impressions: m.impressions,
+      lp_views: m.lp_views,
+      cost_per_lp_view: m.cost_per_lp_view,
     };
   });
 }
