@@ -1,6 +1,6 @@
 'use client';
 import { AgentAction } from '@/lib/api';
-import { TrendingDown, TrendingUp, Bell, User, Bot } from 'lucide-react';
+import { TrendingDown, TrendingUp, Bell, User, Bot, RefreshCw } from 'lucide-react';
 
 const actionStyle: Record<string, { icon: typeof TrendingDown; color: string; bg: string }> = {
   PAUSE_CAMPAIGN:       { icon: TrendingDown, color: 'text-red-400',    bg: 'bg-red-500/10' },
@@ -8,9 +8,9 @@ const actionStyle: Record<string, { icon: typeof TrendingDown; color: string; bg
   PAUSE_AD:             { icon: TrendingDown, color: 'text-red-400',    bg: 'bg-red-500/10' },
   SCALE_UP:             { icon: TrendingUp,   color: 'text-green-400',  bg: 'bg-green-500/10' },
   REDUCE_BUDGET:        { icon: TrendingDown, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+  ACTIVATE_CAMPAIGN:    { icon: RefreshCw,    color: 'text-cyan-400',   bg: 'bg-cyan-500/10' },
   MANUAL_PAUSE:         { icon: TrendingDown, color: 'text-red-400',    bg: 'bg-red-500/10' },
-  ACTIVATE_CAMPAIGN:    { icon: TrendingUp,   color: 'text-blue-400',   bg: 'bg-blue-500/10' },
-  MANUAL_ACTIVATE:      { icon: TrendingUp,   color: 'text-blue-400',   bg: 'bg-blue-500/10' },
+  MANUAL_ACTIVATE:      { icon: RefreshCw,    color: 'text-blue-400',   bg: 'bg-blue-500/10' },
   MANUAL_SCALE_UP:      { icon: TrendingUp,   color: 'text-green-400',  bg: 'bg-green-500/10' },
   MANUAL_REDUCE_BUDGET: { icon: TrendingDown, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   DEFAULT:              { icon: Bell,         color: 'text-yellow-400', bg: 'bg-yellow-500/10' },

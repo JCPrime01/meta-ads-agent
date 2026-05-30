@@ -33,6 +33,12 @@ export async function migrate(): Promise<void> {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS agent_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_actions_campaign ON agent_actions(campaign_id);
     CREATE INDEX IF NOT EXISTS idx_snapshots_date ON campaign_snapshots(snapshot_date);
   `);
@@ -90,6 +96,19 @@ export async function getCampaignsPausedToday(): Promise<string[]> {
       )
   `);
   return r.rows.map((row: { campaign_id: string }) => row.campaign_id);
+}
+
+export async function getSetting(key: string): Promise<string | null> {
+  const r = await pool.query(`SELECT value FROM agent_settings WHERE key = $1`, [key]);
+  return r.rows[0]?.value ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO agent_settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+    [key, value]
+  );
 }
 
 export async function getSnapshots(days = 7) {
