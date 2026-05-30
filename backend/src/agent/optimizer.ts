@@ -7,7 +7,7 @@ import { getAgentAccounts } from '../routes/agent';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const BUDGET_MAX = parseFloat(process.env.AGENT_BUDGET_MAX || '500');
+const BUDGET_MAX = parseFloat(process.env.AGENT_BUDGET_MAX || '5000');
 const MIN_SPEND   = parseFloat(process.env.AGENT_MIN_SPEND   || '20');
 
 type Tool                 = Anthropic.Messages.Tool;
@@ -323,9 +323,16 @@ No histórico você verá ações marcadas como 👤 GESTOR (feitas manualmente 
 - Se ele reduziu budget em vez de pausar → prefere cautela a corte abrupto.
 Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 
-**Princípios de decisão:**
+**Regras de escala — siga exatamente:**
+- CPL excelente (< R$4): escala **+50%** do budget atual. Ex: R$100 → R$150.
+- CPL bom (R$4–R$6): escala **+30%** do budget atual. Ex: R$100 → R$130.
+- CPL preocupante (> R$6): não escala — reduce_budget ou do_nothing.
+- Budget máximo por campanha: R$${BUDGET_MAX}. Nunca ultrapasse.
+- Pode escalar a cada ciclo se a performance continuar boa — não há restrição de "esperar 2 ciclos" para campanhas excelentes.
+- Sempre arredonde o novo budget para número inteiro.
+
+**Outros princípios de decisão:**
 - Prefira reduce_budget a pause_campaign — reduzir dá tempo para otimizar sem matar a campanha.
-- Ao escalar: máximo +30% do budget atual por ciclo. Nunca escale mais de 2x seguidas sem verificar histórico.
 - Conjuntos ou criativos ruins dentro de campanhas boas → pause o elemento ruim, não a campanha inteira.
 - Na dúvida: do_nothing com observação clara sobre o que espera ver no próximo ciclo.
 - send_alert apenas para situações críticas que precisam de decisão humana urgente.
