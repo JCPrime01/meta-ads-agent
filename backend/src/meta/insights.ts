@@ -49,16 +49,18 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
     const actions = (ins.actions as { action_type: string; value: string }[]) || [];
     const costPerAction = (ins.cost_per_action_type as { action_type: string; value: string }[]) || [];
 
-    const leads = actions.find(a =>
-      a.action_type === 'lead' ||
-      a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-      a.action_type === 'contact'
-    );
-    const cplAction = costPerAction.find(a =>
-      a.action_type === 'lead' ||
-      a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
-      a.action_type === 'contact'
-    );
+    const RESULT_TYPES = [
+      'complete_registration',
+      'offsite_conversion.fb_pixel_complete_registration',
+      'lead',
+      'offsite_conversion.fb_pixel_lead',
+      'onsite_conversion.lead',
+      'contact',
+      'onsite_conversion.messaging_conversation_started_7d',
+    ];
+
+    const leads = actions.find(a => RESULT_TYPES.includes(a.action_type));
+    const cplAction = costPerAction.find(a => RESULT_TYPES.includes(a.action_type));
 
     return {
       campaign_id: c.id,
