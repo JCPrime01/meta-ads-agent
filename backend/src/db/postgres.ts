@@ -37,7 +37,10 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_snapshots_date ON campaign_snapshots(snapshot_date);
   `);
   await pool.query(`
-    ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'AGENT';
+    ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'AGENT';
+  `);
+  await pool.query(`
+    UPDATE agent_actions SET source = 'AGENT' WHERE source IS NULL;
   `);
 }
 
