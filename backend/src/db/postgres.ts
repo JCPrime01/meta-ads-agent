@@ -11,6 +11,7 @@ export async function migrate(): Promise<void> {
       reason TEXT NOT NULL,
       value_actual NUMERIC,
       value_threshold NUMERIC,
+      source TEXT NOT NULL DEFAULT 'AGENT',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -35,6 +36,9 @@ export async function migrate(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_actions_campaign ON agent_actions(campaign_id);
     CREATE INDEX IF NOT EXISTS idx_snapshots_date ON campaign_snapshots(snapshot_date);
   `);
+  await pool.query(`
+    ALTER TABLE agent_actions ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'AGENT';
+  `);
 }
 
 export async function logAction(
@@ -42,11 +46,12 @@ export async function logAction(
   action: string,
   reason: string,
   valueActual: number,
-  valueThreshold: number
+  valueThreshold: number,
+  source: 'AGENT' | 'MANUAL' = 'AGENT'
 ): Promise<void> {
   await pool.query(
-    `INSERT INTO agent_actions (campaign_id, action, reason, value_actual, value_threshold) VALUES ($1,$2,$3,$4,$5)`,
-    [campaignId, action, reason, valueActual, valueThreshold]
+    `INSERT INTO agent_actions (campaign_id, action, reason, value_actual, value_threshold, source) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [campaignId, action, reason, valueActual, valueThreshold, source]
   );
 }
 

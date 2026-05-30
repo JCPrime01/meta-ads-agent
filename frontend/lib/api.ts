@@ -24,6 +24,7 @@ export interface AgentAction {
   reason: string;
   value_actual: number;
   value_threshold: number;
+  source: 'AGENT' | 'MANUAL';
   created_at: string;
 }
 

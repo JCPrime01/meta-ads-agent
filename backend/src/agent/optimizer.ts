@@ -186,9 +186,11 @@ export async function runOptimizer(): Promise<void> {
   // Histórico das últimas ações
   const recentActions = await getRecentActions(30);
   const historyText = recentActions.length > 0
-    ? recentActions.slice(0, 15).map(a =>
-        `  [${new Date(a.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}] ${a.action} ${a.campaign_id} — ${a.reason}`
-      ).join('\n')
+    ? recentActions.slice(0, 20).map(a => {
+        const who = a.source === 'MANUAL' ? '👤 GESTOR' : '🤖 AGENTE';
+        const time = new Date(a.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        return `  [${time}] ${who} — ${a.action} ${a.campaign_id} — ${a.reason}`;
+      }).join('\n')
     : '  Nenhuma ação recente.';
 
   // Resumo compacto para economizar tokens
@@ -273,6 +275,14 @@ export async function runOptimizer(): Promise<void> {
    - CPC alto + CTR baixo + lp_views baixos → pause_campaign (problema de topo de funil).
    - CPC baixo + lp_views altos + poucos leads → problema na LP → send_alert, não pause.
    - Sem padrão claro → reduce_budget e observe mais um ciclo.
+
+**Aprenda com o gestor:**
+No histórico você verá ações marcadas como 👤 GESTOR (feitas manualmente pelo dono das contas) e 🤖 AGENTE (suas próprias ações). Preste atenção especial nas ações do gestor:
+- Se ele pausou uma campanha com CPL X → ele considera aquele CPL inaceitável.
+- Se ele escalou com CPL Y → ele considera aquele CPL bom o suficiente para crescer.
+- Se ele reativou algo que você pausou → você foi conservador demais naquele caso.
+- Se ele reduziu budget em vez de pausar → prefere cautela a corte abrupto.
+Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 
 **Princípios de decisão:**
 - Prefira reduce_budget a pause_campaign — reduzir dá tempo para otimizar sem matar a campanha.
