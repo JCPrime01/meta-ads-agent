@@ -75,6 +75,20 @@ export async function getRecentActions(limit = 50) {
   return r.rows;
 }
 
+export async function getCampaignsPausedToday(): Promise<string[]> {
+  const r = await pool.query(`
+    SELECT DISTINCT campaign_id FROM agent_actions
+    WHERE action IN ('PAUSE_CAMPAIGN', 'MANUAL_PAUSE')
+      AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
+      AND campaign_id NOT IN (
+        SELECT campaign_id FROM agent_actions
+        WHERE action IN ('ACTIVATE_CAMPAIGN', 'MANUAL_ACTIVATE')
+          AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
+      )
+  `);
+  return r.rows.map((row: { campaign_id: string }) => row.campaign_id);
+}
+
 export async function getSnapshots(days = 7) {
   const r = await pool.query(
     `SELECT * FROM campaign_snapshots WHERE snapshot_date >= CURRENT_DATE - $1 ORDER BY created_at DESC`,

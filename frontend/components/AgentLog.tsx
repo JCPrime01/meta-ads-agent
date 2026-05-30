@@ -9,6 +9,7 @@ const actionStyle: Record<string, { icon: typeof TrendingDown; color: string; bg
   SCALE_UP:             { icon: TrendingUp,   color: 'text-green-400',  bg: 'bg-green-500/10' },
   REDUCE_BUDGET:        { icon: TrendingDown, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   MANUAL_PAUSE:         { icon: TrendingDown, color: 'text-red-400',    bg: 'bg-red-500/10' },
+  ACTIVATE_CAMPAIGN:    { icon: TrendingUp,   color: 'text-blue-400',   bg: 'bg-blue-500/10' },
   MANUAL_ACTIVATE:      { icon: TrendingUp,   color: 'text-blue-400',   bg: 'bg-blue-500/10' },
   MANUAL_SCALE_UP:      { icon: TrendingUp,   color: 'text-green-400',  bg: 'bg-green-500/10' },
   MANUAL_REDUCE_BUDGET: { icon: TrendingDown, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
