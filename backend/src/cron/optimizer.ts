@@ -27,17 +27,20 @@ export function startCron(): void {
 
 async function sendDailyReport(): Promise<void> {
   const campaigns = await getAllAccountsInsights();
+
+  // Inclui todas as campanhas com gasto > 0 hoje (ativas ou pausadas)
+  const withSpend = campaigns.filter(c => c.spend > 0);
   const active = campaigns.filter(c => c.status === 'ACTIVE');
 
-  const totalSpend = active.reduce((s, c) => s + c.spend, 0);
-  const totalLeads = active.reduce((s, c) => s + c.leads, 0);
+  const totalSpend = withSpend.reduce((s, c) => s + c.spend, 0);
+  const totalLeads = withSpend.reduce((s, c) => s + c.leads, 0);
   const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
 
-  const top = active
+  const top = withSpend
     .sort((a, b) => b.leads - a.leads)
     .slice(0, 5)
     .map(c =>
-      `• ${c.campaign_name.slice(0, 45)}\n  💰 R$${c.spend.toFixed(2)} | CPL R$${c.cpl.toFixed(2)} | Leads: ${c.leads}`
+      `• ${c.campaign_name.slice(0, 45)}\n  💰 R$${c.spend.toFixed(2)} | CPL R$${c.cpl > 0 ? c.cpl.toFixed(2) : '—'} | Leads: ${c.leads}`
     );
 
   const msg = [
@@ -47,9 +50,9 @@ async function sendDailyReport(): Promise<void> {
     `💰 Gasto total: R$${totalSpend.toFixed(2)}`,
     `🎯 Total de leads: ${totalLeads}`,
     `📉 CPL médio: R$${avgCpl > 0 ? avgCpl.toFixed(2) : '—'}`,
-    `📣 Campanhas ativas: ${active.length}`,
+    `📣 Campanhas ativas: ${active.length} | Com gasto hoje: ${withSpend.length}`,
     ``,
-    `*Top campanhas (leads):*`,
+    `*Top 5 campanhas do dia (leads):*`,
     ...top,
   ].join('\n');
 
