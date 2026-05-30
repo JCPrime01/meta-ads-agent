@@ -59,8 +59,9 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
       'onsite_conversion.messaging_conversation_started_7d',
     ];
 
-    const leads = actions.find(a => RESULT_TYPES.includes(a.action_type));
-    const cplAction = costPerAction.find(a => RESULT_TYPES.includes(a.action_type));
+    const leadsAction = actions.find(a => RESULT_TYPES.includes(a.action_type));
+    const leadsCount = parseInt(leadsAction?.value || '0');
+    const spend = parseFloat((ins as Record<string, string>).spend || '0');
 
     return {
       campaign_id: c.id,
@@ -68,14 +69,14 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
       account_id: accountId,
       status: c.effective_status || c.status,
       daily_budget: parseFloat(c.daily_budget || c.lifetime_budget || '0') / 100,
-      spend: parseFloat((ins as Record<string, string>).spend || '0'),
+      spend,
       impressions: parseInt((ins as Record<string, string>).impressions || '0'),
       clicks: parseInt((ins as Record<string, string>).clicks || '0'),
       ctr: parseFloat((ins as Record<string, string>).ctr || '0'),
       cpc: parseFloat((ins as Record<string, string>).cpc || '0'),
-      cpl: parseFloat(cplAction?.value || '0'),
+      cpl: leadsCount > 0 ? spend / leadsCount : 0,
       frequency: parseFloat((ins as Record<string, string>).frequency || '0'),
-      leads: parseInt(leads?.value || '0'),
+      leads: leadsCount,
       reach: parseInt((ins as Record<string, string>).reach || '0'),
     };
   });
