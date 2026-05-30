@@ -6,6 +6,10 @@ import { sendWhatsApp } from '../whatsapp';
 export function startCron(): void {
   // Ciclo principal — a cada 30min das 05h às 16h BRT (08h–19h UTC)
   cron.schedule('*/30 8-19 * * *', async () => {
+    if (process.env.AGENT_ENABLED === 'false') {
+      console.log('[cron] agente desabilitado (AGENT_ENABLED=false)');
+      return;
+    }
     try {
       await runOptimizer();
     } catch (err) {
