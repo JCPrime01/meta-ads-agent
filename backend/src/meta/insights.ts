@@ -18,29 +18,36 @@ export interface CampaignInsight {
 }
 
 export async function getCampaignsWithInsights(accountId: string): Promise<CampaignInsight[]> {
-  const [campaignsRes, insightsRes] = await Promise.all([
-    metaGet(`/${accountId}/campaigns`, {
-      fields: 'id,name,status,daily_budget,lifetime_budget,effective_status',
-      limit: '200',
-    }),
-    metaGet(`/${accountId}/insights`, {
-      fields: 'campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,actions,cost_per_action_type,frequency,reach',
-      date_preset: 'today',
-      level: 'campaign',
-      limit: '200',
-    }),
-  ]);
+  // Busca apenas campanhas que tiveram atividade hoje — ignora tudo que não rodou
+  const insightsRes = await metaGet(`/${accountId}/insights`, {
+    fields: 'campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,actions,cost_per_action_type,frequency,reach',
+    date_preset: 'today',
+    level: 'campaign',
+    limit: '200',
+  });
 
-  const insightsMap: Record<string, Record<string, string>> = {};
-  for (const ins of insightsRes.data || []) {
-    insightsMap[ins.campaign_id] = ins;
+  const insights: Record<string, unknown>[] = insightsRes.data || [];
+  if (insights.length === 0) return [];
+
+  // Mapa de insights por campaign_id
+  const insightsMap: Record<string, Record<string, unknown>> = {};
+  for (const ins of insights) {
+    insightsMap[ins.campaign_id as string] = ins;
   }
 
-  return (campaignsRes.data || []).map((c: Record<string, string>) => {
+  // Busca status e orçamento em batch só para essas campanhas
+  const ids = insights.map(i => i.campaign_id as string).join(',');
+  const batchRes = await metaGet('', {
+    ids,
+    fields: 'id,name,status,effective_status,daily_budget,lifetime_budget',
+  });
+
+  const campaigns = Object.values(batchRes as Record<string, Record<string, string>>);
+
+  return campaigns.map(c => {
     const ins = insightsMap[c.id] || {};
-    const insAny = ins as Record<string, unknown>;
-    const actions: { action_type: string; value: string }[] = (insAny.actions as { action_type: string; value: string }[]) || [];
-    const costPerAction: { action_type: string; value: string }[] = (insAny.cost_per_action_type as { action_type: string; value: string }[]) || [];
+    const actions = (ins.actions as { action_type: string; value: string }[]) || [];
+    const costPerAction = (ins.cost_per_action_type as { action_type: string; value: string }[]) || [];
 
     const leads = actions.find(a =>
       a.action_type === 'lead' ||
