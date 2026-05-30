@@ -22,18 +22,20 @@ router.get('/', async (req, res) => {
   }
 });
 
-function logManual(id: string, action: string, reason: string, cpl: number) {
-  logAction(id, action, reason, cpl, 0, 'MANUAL').catch(err =>
-    console.error('[manual-log] falha ao registrar ação manual:', err)
-  );
+async function logManual(id: string, action: string, reason: string, cpl: number) {
+  try {
+    await logAction(id, action, reason, cpl, 0, 'MANUAL');
+  } catch (err) {
+    console.error('[manual-log] falha ao registrar ação manual:', err);
+  }
 }
 
 router.post('/:id/pause', async (req, res) => {
   try {
     await pauseCampaign(req.params.id);
-    res.json({ ok: true });
     const c = cache?.data.find(x => x.campaign_id === req.params.id);
-    logManual(req.params.id, 'MANUAL_PAUSE', `Pausada manualmente pelo gestor. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}, Gasto: R$${c?.spend?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
+    await logManual(req.params.id, 'MANUAL_PAUSE', `Pausada manualmente. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}, Gasto: R$${c?.spend?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
@@ -42,9 +44,9 @@ router.post('/:id/pause', async (req, res) => {
 router.post('/:id/activate', async (req, res) => {
   try {
     await activateCampaign(req.params.id);
-    res.json({ ok: true });
     const c = cache?.data.find(x => x.campaign_id === req.params.id);
-    logManual(req.params.id, 'MANUAL_ACTIVATE', `Reativada manualmente pelo gestor. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}, Gasto: R$${c?.spend?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
+    await logManual(req.params.id, 'MANUAL_ACTIVATE', `Reativada manualmente. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}, Gasto: R$${c?.spend?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
@@ -54,11 +56,11 @@ router.post('/:id/budget', async (req, res) => {
   try {
     const { budget } = req.body as { budget: number };
     await updateDailyBudget(req.params.id, budget);
-    res.json({ ok: true });
     const c = cache?.data.find(x => x.campaign_id === req.params.id);
     const prev = c?.daily_budget ?? 0;
     const action = budget > prev ? 'MANUAL_SCALE_UP' : 'MANUAL_REDUCE_BUDGET';
-    logManual(req.params.id, action, `Budget ajustado manualmente: R$${prev.toFixed(2)} → R$${budget.toFixed(2)}. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
+    await logManual(req.params.id, action, `Budget: R$${prev.toFixed(2)} → R$${budget.toFixed(2)}. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
