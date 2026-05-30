@@ -140,9 +140,9 @@ async function executeTool(name: string, input: ToolInput, campaigns: CampaignIn
       const c = campaigns.find(x => x.campaign_id === input.campaign_id);
       if (!c) return 'Campanha não encontrada.';
       const newBudget = Math.min(input.new_budget_brl!, BUDGET_MAX);
-      const actual = await scaleBudget(input.campaign_id!, c.daily_budget, 1, newBudget);
+      await updateDailyBudget(input.campaign_id!, newBudget);
       await logAction(input.campaign_id!, 'SCALE_UP', input.reason!, c.cpl, 0);
-      return `✅ Budget escalado para R$${actual.toFixed(2)}.`;
+      return `✅ Budget escalado para R$${newBudget.toFixed(2)}.`;
     }
     case 'reduce_budget': {
       const c = campaigns.find(x => x.campaign_id === input.campaign_id);
