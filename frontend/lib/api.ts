@@ -69,3 +69,13 @@ export async function updateBudget(campaignId: string, budget: number): Promise<
     body: JSON.stringify({ budget }),
   });
 }
+
+export async function getAgentStatus(): Promise<{ enabled: boolean }> {
+  const r = await fetch(`${BASE}/agent/status`, { cache: 'no-store' });
+  return r.json();
+}
+
+export async function toggleAgent(): Promise<{ enabled: boolean }> {
+  const r = await fetch(`${BASE}/agent/toggle`, { method: 'POST' });
+  return r.json();
+}

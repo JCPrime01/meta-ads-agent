@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES } from '@/lib/api';
+import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import CampaignRow from '@/components/CampaignRow';
 import AgentLog from '@/components/AgentLog';
@@ -15,6 +15,8 @@ export default function Home() {
   const [tab, setTab] = useState<'active' | 'paused' | 'agent'>('active');
   const [refreshing, setRefreshing] = useState(false);
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
+  const [agentEnabled, setAgentEnabled] = useState<boolean | null>(null);
+  const [togglingAgent, setTogglingAgent] = useState(false);
 
   const load = useCallback(async (force = false) => {
     try {
@@ -28,6 +30,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    getAgentStatus().then(s => setAgentEnabled(s.enabled)).catch(() => {});
+  }, []);
+
+  async function handleToggleAgent() {
+    setTogglingAgent(true);
+    try {
+      const s = await toggleAgent();
+      setAgentEnabled(s.enabled);
+    } finally {
+      setTogglingAgent(false);
+    }
+  }
 
   function refresh() {
     setRefreshing(true);
@@ -83,6 +99,21 @@ export default function Home() {
             </select>
             <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
           </div>
+          {agentEnabled !== null && (
+            <button
+              onClick={handleToggleAgent}
+              disabled={togglingAgent}
+              title={agentEnabled ? 'Agente ativo — clique para desativar' : 'Agente inativo — clique para ativar'}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                agentEnabled
+                  ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                  : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
+              } ${togglingAgent ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Bot size={13} className={togglingAgent ? 'animate-pulse' : ''} />
+              {agentEnabled ? 'Agente ON' : 'Agente OFF'}
+            </button>
+          )}
           <button
             onClick={refresh}
             disabled={refreshing}

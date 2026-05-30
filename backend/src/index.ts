@@ -5,6 +5,7 @@ import { migrate } from './db/postgres';
 import { startCron } from './cron/optimizer';
 import campaignsRouter from './routes/campaigns';
 import insightsRouter from './routes/insights';
+import agentRouter from './routes/agent';
 import { requireApiSecret } from './middleware/auth';
 
 const app = express();
@@ -30,6 +31,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use(requireApiSecret);
 app.use('/campaigns', campaignsRouter);
 app.use('/insights', insightsRouter);
+app.use('/agent', agentRouter);
 
 async function start() {
   try {
