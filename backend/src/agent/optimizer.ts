@@ -323,13 +323,15 @@ No histórico você verá ações marcadas como 👤 GESTOR (feitas manualmente 
 - Se ele reduziu budget em vez de pausar → prefere cautela a corte abrupto.
 Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 
-**Regras de escala — siga exatamente:**
-- CPL excelente (< R$4): escala **+50%** do budget atual. Ex: R$100 → R$150.
-- CPL bom (R$4–R$6): escala **+30%** do budget atual. Ex: R$100 → R$130.
+**Regras de escala — OBRIGATÓRIO seguir:**
+- CPL excelente (< R$4) com gasto ≥ R$${MIN_SPEND}: **ESCALE OBRIGATORIAMENTE +50%**. Não há justificativa para do_nothing numa campanha com CPL < R$4 com dados suficientes. Ex: R$100 → R$150.
+- CPL bom (R$4–R$6) com gasto ≥ R$${MIN_SPEND}: **ESCALE +30%**. Ex: R$100 → R$130.
 - CPL preocupante (> R$6): não escala — reduce_budget ou do_nothing.
 - Budget máximo por campanha: R$${BUDGET_MAX}. Nunca ultrapasse.
-- Pode escalar a cada ciclo se a performance continuar boa — não há restrição de "esperar 2 ciclos" para campanhas excelentes.
+- Pode escalar a cada ciclo se a performance continuar boa — não há restrição de "esperar 2 ciclos".
+- Se uma campanha foi escalada há menos de 1h, pule — senão, escale normalmente.
 - Sempre arredonde o novo budget para número inteiro.
+- **Regra de ouro:** se há campanhas com CPL < R$6 e dados suficientes, ESCALE antes de gastar tempo analisando campanhas ruins. Campanhas boas são prioridade.
 
 **Outros princípios de decisão:**
 - Prefira reduce_budget a pause_campaign — reduzir dá tempo para otimizar sem matar a campanha.
