@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getAllAccountsInsights, getAllAccountsHierarchical, CampaignInsight } from '../meta/insights';
-import { pauseCampaign, activateCampaign, pauseAdset, pauseAd, scaleBudget, updateDailyBudget } from '../meta/campaigns';
-import { logAction, saveSnapshot, getRecentActions, getCampaignsPausedToday } from '../db/postgres';
+import { pauseCampaign, activateCampaign, activateAdset, activateAd, pauseAdset, pauseAd, scaleBudget, updateDailyBudget } from '../meta/campaigns';
+import { logAction, saveSnapshot, getRecentActions, getCampaignsPausedToday, getAdsetsPausedToday, getAdsPausedToday } from '../db/postgres';
 import { sendWhatsApp } from '../whatsapp';
 import { getAgentAccounts } from '../routes/agent';
 
@@ -93,6 +93,30 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    name: 'activate_adset',
+    description: 'Reativa um conjunto pausado HOJE pelo agente. Use apenas se o contexto do portfólio melhorou desde a pausa e o CPL quando foi pausado era próximo do limite (não muito acima de R$6).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        adset_id: { type: 'string' as const },
+        reason: { type: 'string' as const },
+      },
+      required: ['adset_id', 'reason'],
+    },
+  },
+  {
+    name: 'activate_ad',
+    description: 'Reativa um criativo pausado HOJE pelo agente. Use apenas se o contexto do portfólio melhorou desde a pausa e o CPL quando foi pausado era próximo do limite (não muito acima de R$5).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ad_id: { type: 'string' as const },
+        reason: { type: 'string' as const },
+      },
+      required: ['ad_id', 'reason'],
+    },
+  },
+  {
     name: 'send_alert',
     description: 'Envia alerta urgente no WhatsApp. Use apenas para situações críticas que exigem decisão humana imediata.',
     input_schema: {
@@ -167,6 +191,16 @@ async function executeTool(name: string, input: ToolInput, campaigns: CampaignIn
       await logAction(input.campaign_id!, 'ACTIVATE_CAMPAIGN', input.reason!, 0, 0);
       return `✅ Campanha ${input.campaign_id} reativada.`;
     }
+    case 'activate_adset': {
+      await activateAdset(input.adset_id!);
+      await logAction(input.adset_id!, 'ACTIVATE_ADSET', input.reason!, 0, 0);
+      return `✅ Conjunto ${input.adset_id} reativado.`;
+    }
+    case 'activate_ad': {
+      await activateAd(input.ad_id!);
+      await logAction(input.ad_id!, 'ACTIVATE_AD', input.reason!, 0, 0);
+      return `✅ Criativo ${input.ad_id} reativado.`;
+    }
     case 'send_alert': {
       await sendWhatsApp(`🚨 *Alerta do Agente*\n\n${input.message}`);
       return '✅ Alerta enviado.';
@@ -212,6 +246,9 @@ export async function runOptimizer(): Promise<void> {
       leads_hoje: c.leads,
       ctr: c.ctr,
     }));
+
+  const adsetsPausedToday = await getAdsetsPausedToday();
+  const adsPausedToday = await getAdsPausedToday();
 
   // Histórico das últimas ações
   const recentActions = await getRecentActions(30);
@@ -309,11 +346,18 @@ export async function runOptimizer(): Promise<void> {
 **Reativação de campanhas pausadas hoje:**
 Você receberá uma lista de campanhas pausadas HOJE (pelo agente ou pelo gestor). Você pode reativar usando activate_campaign APENAS para essas. NUNCA reative campanhas que não estejam nessa lista — elas foram pausadas estrategicamente.
 
-Critérios para reativar:
+Critérios para reativar campanha:
 - O CPL médio do portfólio ativo agora está significativamente melhor do que quando ela foi pausada.
 - A campanha tinha bom histórico (CPL baixo antes de piorar hoje — veja o histórico de ações).
 - Faz pelo menos 1 ciclo (30 min) desde a pausa — dá tempo pro Meta resetar.
 - Se o CPL quando foi pausada era extremamente alto (ex: R$15+), não reative — foi problema estrutural.
+
+**Reativação de conjuntos e criativos pausados hoje:**
+Você também receberá listas de conjuntos (activate_adset) e criativos (activate_ad) pausados HOJE pelo agente. Critérios para reativar:
+- Conjunto: CPL quando pausado estava entre R$6 e R$8 (próximo do limite) E o portfólio ativo agora tem CPL médio muito melhor — pode ser que era um problema pontual.
+- Criativo: CPL quando pausado estava entre R$5 e R$7 E outros criativos da mesma campanha agora estão performando pior — pode valer dar mais uma chance.
+- Faz pelo menos 1 ciclo (30 min) desde a pausa.
+- Se CPL quando pausado estava acima de R$10 (conjunto) ou R$8 (criativo) — não reative, foi problema claro.
 
 **Aprenda com o gestor:**
 No histórico você verá ações marcadas como 👤 GESTOR (feitas manualmente pelo dono das contas) e 🤖 AGENTE (suas próprias ações). Preste atenção especial nas ações do gestor:
@@ -357,9 +401,17 @@ Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 - Não tome mais de 1 ação por campanha por ciclo.
 - Budget mínimo ao reduzir: R$10.`;
 
-  const reactivationBlock = reactivationCandidates.length > 0
-    ? `\n**CAMPANHAS PAUSADAS HOJE — candidatas a reativação (${reactivationCandidates.length}):**\n${JSON.stringify(reactivationCandidates, null, 2)}\n`
-    : '';
+  const reactivationBlock = [
+    reactivationCandidates.length > 0
+      ? `\n**CAMPANHAS PAUSADAS HOJE — candidatas a reativação (${reactivationCandidates.length}):**\n${JSON.stringify(reactivationCandidates, null, 2)}`
+      : '',
+    adsetsPausedToday.length > 0
+      ? `\n**CONJUNTOS PAUSADOS HOJE — candidatos a reativação (${adsetsPausedToday.length}):**\n${JSON.stringify(adsetsPausedToday, null, 2)}`
+      : '',
+    adsPausedToday.length > 0
+      ? `\n**CRIATIVOS PAUSADOS HOJE — candidatos a reativação (${adsPausedToday.length}):**\n${JSON.stringify(adsPausedToday, null, 2)}`
+      : '',
+  ].filter(Boolean).join('\n') + (reactivationCandidates.length + adsetsPausedToday.length + adsPausedToday.length > 0 ? '\n' : '');
 
   const userMessage = `**Histórico recente de ações:**
 ${historyText}
@@ -411,6 +463,10 @@ Analise o portfólio completo e tome as decisões que um gestor experiente tomar
         actionLog.push(`⛔ *Pausei criativo* ${input.ad_id}\nMotivo: ${input.reason}`);
       } else if (toolBlock.name === 'activate_campaign') {
         actionLog.push(`✅ *Reativei campanha* ${input.campaign_id}\nMotivo: ${input.reason}`);
+      } else if (toolBlock.name === 'activate_adset') {
+        actionLog.push(`✅ *Reativei conjunto* ${input.adset_id}\nMotivo: ${input.reason}`);
+      } else if (toolBlock.name === 'activate_ad') {
+        actionLog.push(`✅ *Reativei criativo* ${input.ad_id}\nMotivo: ${input.reason}`);
       } else if (toolBlock.name === 'scale_budget') {
         actionLog.push(`📈 *Escalei budget* → R$${input.new_budget_brl}\nMotivo: ${input.reason}`);
       } else if (toolBlock.name === 'reduce_budget') {
