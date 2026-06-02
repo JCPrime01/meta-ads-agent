@@ -120,7 +120,7 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
 
 export async function getAdsetInsights(accountId: string): Promise<AdsetInsight[]> {
   const insightsRes = await metaGet(`/${accountId}/insights`, {
-    fields: 'adset_id,adset_name,campaign_id,spend,impressions,clicks,ctr,actions',
+    fields: 'adset_id,adset_name,campaign_id,spend,impressions,clicks,ctr,cpc,actions',
     date_preset: 'today',
     level: 'adset',
     limit: '500',
@@ -158,7 +158,7 @@ export async function getAdsetInsights(accountId: string): Promise<AdsetInsight[
 
 export async function getAdInsights(accountId: string): Promise<AdInsight[]> {
   const insightsRes = await metaGet(`/${accountId}/insights`, {
-    fields: 'ad_id,ad_name,adset_id,campaign_id,spend,impressions,clicks,ctr,actions',
+    fields: 'ad_id,ad_name,adset_id,campaign_id,spend,impressions,clicks,ctr,cpc,actions',
     date_preset: 'today',
     level: 'ad',
     limit: '500',
@@ -213,3 +213,4 @@ export async function getAllAccountsHierarchical(activeCampaignIds: string[]) {
     .filter(a => activeCampaignIds.includes(a.campaign_id));
   return { adsets: allAdsets, ads: allAds };
 }
+
