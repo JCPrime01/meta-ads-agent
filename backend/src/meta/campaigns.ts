@@ -16,6 +16,14 @@ export async function activateCampaign(campaignId: string): Promise<void> {
   await metaPost(`/${campaignId}`, { status: 'ACTIVE' });
 }
 
+export async function activateAdset(adsetId: string): Promise<void> {
+  await metaPost(`/${adsetId}`, { status: 'ACTIVE' });
+}
+
+export async function activateAd(adId: string): Promise<void> {
+  await metaPost(`/${adId}`, { status: 'ACTIVE' });
+}
+
 export async function updateDailyBudget(campaignId: string, newBudgetBRL: number): Promise<void> {
   // Meta API uses centavos
   await metaPost(`/${campaignId}`, { daily_budget: Math.round(newBudgetBRL * 100) });
