@@ -98,6 +98,44 @@ export async function getCampaignsPausedToday(): Promise<string[]> {
   return r.rows.map((row: { campaign_id: string }) => row.campaign_id);
 }
 
+export async function getAdsetsPausedToday(): Promise<{ id: string; cpl_quando_pausado: number }[]> {
+  const r = await pool.query(`
+    SELECT DISTINCT ON (campaign_id) campaign_id, value_actual
+    FROM agent_actions
+    WHERE action IN ('PAUSE_ADSET')
+      AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
+      AND campaign_id NOT IN (
+        SELECT campaign_id FROM agent_actions
+        WHERE action IN ('ACTIVATE_ADSET')
+          AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
+      )
+    ORDER BY campaign_id, created_at DESC
+  `);
+  return r.rows.map((row: { campaign_id: string; value_actual: number }) => ({
+    id: row.campaign_id,
+    cpl_quando_pausado: row.value_actual ?? 0,
+  }));
+}
+
+export async function getAdsPausedToday(): Promise<{ id: string; cpl_quando_pausado: number }[]> {
+  const r = await pool.query(`
+    SELECT DISTINCT ON (campaign_id) campaign_id, value_actual
+    FROM agent_actions
+    WHERE action IN ('PAUSE_AD')
+      AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
+      AND campaign_id NOT IN (
+        SELECT campaign_id FROM agent_actions
+        WHERE action IN ('ACTIVATE_AD')
+          AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
+      )
+    ORDER BY campaign_id, created_at DESC
+  `);
+  return r.rows.map((row: { campaign_id: string; value_actual: number }) => ({
+    id: row.campaign_id,
+    cpl_quando_pausado: row.value_actual ?? 0,
+  }));
+}
+
 export async function getSetting(key: string): Promise<string | null> {
   const r = await pool.query(`SELECT value FROM agent_settings WHERE key = $1`, [key]);
   return r.rows[0]?.value ?? null;
