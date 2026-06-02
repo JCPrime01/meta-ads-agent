@@ -333,6 +333,22 @@ Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 - Sempre arredonde o novo budget para número inteiro.
 - **Regra de ouro:** se há campanhas com CPL < R$6 e dados suficientes, ESCALE antes de gastar tempo analisando campanhas ruins. Campanhas boas são prioridade.
 
+**Regras de pausa para CONJUNTOS (pause_adset) — OBRIGATÓRIO seguir:**
+- CPL > R$8 com gasto ≥ R$15: **PAUSE OBRIGATORIAMENTE**. Não há justificativa para manter um conjunto sangrando nesse nível.
+- CPL > R$6 com gasto ≥ R$20 e 0 leads: **PAUSE** — tráfego sem conversão com dados suficientes.
+- CPL > R$10 com gasto ≥ R$8 (mesmo com poucos leads): **PAUSE** — CPL crítico, não espere mais dados.
+- Conjunto com CTR < 0,5% e gasto ≥ R$10: **PAUSE** — criativo/público não engaja.
+- Conjunto com gasto < R$10: observe, não pause ainda.
+- **Regra de ouro:** conjuntos ruins drenam budget das campanhas boas. Pause rápido e sem hesitar quando os thresholds acima forem atingidos.
+
+**Regras de pausa para CRIATIVOS (pause_ad) — OBRIGATÓRIO seguir:**
+- CPL > R$10 com gasto ≥ R$8: **PAUSE OBRIGATORIAMENTE**.
+- CPL > R$8 com gasto ≥ R$12 e ≥ 2 leads: **PAUSE**.
+- CTR < 0,3% com gasto ≥ R$5 e ≥ 500 impressões: **PAUSE** — criativo não gera clique.
+- Criativo com 0 leads e gasto ≥ R$8: **PAUSE** — está consumindo budget sem converter.
+- Criativo com gasto < R$5: observe, não pause ainda.
+- **Regra de ouro:** criativos ruins puxam o CPL da campanha para cima. Corte rápido, o portfólio agradece.
+
 **Outros princípios de decisão:**
 - Prefira reduce_budget a pause_campaign — reduzir dá tempo para otimizar sem matar a campanha.
 - Conjuntos ou criativos ruins dentro de campanhas boas → pause o elemento ruim, não a campanha inteira.
@@ -415,3 +431,4 @@ Analise o portfólio completo e tome as decisões que um gestor experiente tomar
 
   console.log(`[agent] ciclo concluído — ${actionLog.length} ação(ões)`);
 }
+
