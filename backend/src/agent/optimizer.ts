@@ -396,7 +396,7 @@ Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 - Conjuntos ou criativos ruins dentro de campanhas boas → pause o elemento ruim, não a campanha inteira.
 - Na dúvida: do_nothing com observação clara sobre o que espera ver no próximo ciclo.
 - send_alert apenas para situações críticas que precisam de decisão humana urgente.
-- Não tome mais de 1 ação por campanha por ciclo.
+- Não tome mais de 1 ação por campanha por ciclo. Essa regra vale APENAS para campanhas — adsets e criativos são independentes e devem ser avaliados separadamente mesmo que a campanha já tenha sido escalada ou reduzida.
 - Budget mínimo ao reduzir: R$10.`;
 
   const reactivationBlock = [
