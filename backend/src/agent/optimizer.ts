@@ -378,20 +378,18 @@ Use esses padrões para calibrar suas próprias decisões no ciclo atual.
 - **Regra de ouro:** se há campanhas com CPL < R$6 e dados suficientes, ESCALE antes de gastar tempo analisando campanhas ruins. Campanhas boas são prioridade.
 
 **Regras de pausa para CONJUNTOS (pause_adset) — OBRIGATÓRIO seguir:**
-- CPL > R$6 com gasto ≥ R$15: **PAUSE OBRIGATORIAMENTE**. Não há justificativa para manter um conjunto com CPL acima de R$6.
-- CPL > R$6 com gasto ≥ R$20 e 0 leads: **PAUSE** — tráfego sem conversão com dados suficientes.
-- Conjunto com CPL > R$6 e gasto ≥ R$10 e 0 leads: **PAUSE** — sem nenhuma conversão.
-- Conjunto com CTR < 0,5% e gasto ≥ R$10: **PAUSE** — criativo/público não engaja.
-- Conjunto com gasto < R$10: observe, não pause ainda.
-- **Regra de ouro:** conjuntos ruins drenam budget das campanhas boas. Pause rápido e sem hesitar quando CPL > R$6.
+- CPL > R$6 com qualquer gasto e ≥ 1 lead: **PAUSE IMEDIATAMENTE**. Não importa quanto gastou — CPL acima de R$6 é inaceitável.
+- 0 leads e gasto ≥ R$10: **PAUSE** — gastou o suficiente sem converter nada.
+- CTR < 0,5% e gasto ≥ R$8: **PAUSE** — público/criativo não engaja.
+- Gasto < R$3: observe, ainda sem dados.
+- **Regra de ouro:** CPL > R$6 com lead confirmado = pause imediato, sem exceção.
 
 **Regras de pausa para CRIATIVOS (pause_ad) — OBRIGATÓRIO seguir:**
-- CPL > R$5 com gasto ≥ R$8: **PAUSE OBRIGATORIAMENTE**. CPL acima de R$5 num criativo é inaceitável.
-- CPL > R$5 com gasto ≥ R$5 e ≥ 2 leads: **PAUSE**.
-- CTR < 0,3% com gasto ≥ R$5 e ≥ 500 impressões: **PAUSE** — criativo não gera clique.
-- Criativo com 0 leads e gasto ≥ R$8: **PAUSE** — está consumindo budget sem converter.
-- Criativo com gasto < R$5: observe, não pause ainda.
-- **Regra de ouro:** criativos ruins puxam o CPL da campanha para cima. CPL > R$5 no criativo = pause imediato.
+- CPL > R$5 com qualquer gasto e ≥ 1 lead: **PAUSE IMEDIATAMENTE**. CPL acima de R$5 num criativo = pause, sem mínimo de gasto.
+- 0 leads e gasto ≥ R$8: **PAUSE** — consumindo budget sem nenhuma conversão.
+- CTR < 0,3% e gasto ≥ R$5 e ≥ 300 impressões: **PAUSE** — criativo não gera clique.
+- Gasto < R$2: observe, ainda sem dados.
+- **Regra de ouro:** CPL > R$5 com lead confirmado = pause imediato, sem exceção.
 
 **Outros princípios de decisão:**
 - Prefira reduce_budget a pause_campaign — reduzir dá tempo para otimizar sem matar a campanha.
