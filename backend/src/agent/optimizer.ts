@@ -424,7 +424,9 @@ ${JSON.stringify(adsetSummary, null, 2)}
 **CRIATIVOS ATIVOS com gasto (${adSummary.length}):**
 ${JSON.stringify(adSummary, null, 2)}
 
-Analise o portfólio completo e tome as decisões que um gestor experiente tomaria agora. Pense no contexto antes de agir.`;
+Analise o portfólio completo e tome as decisões que um gestor experiente tomaria agora.
+
+IMPORTANTE: Para cada campanha, conjunto e criativo analisado, você DEVE obrigatoriamente chamar uma ferramenta — pause_campaign, scale_budget, reduce_budget, pause_adset, pause_ad, activate_campaign, activate_adset, activate_ad, send_alert ou do_nothing. Não responda com texto. Cada item analisado precisa de uma chamada de ferramenta correspondente. Comece pelas campanhas, depois conjuntos, depois criativos.`;
 
   const messages: MessageParam[] = [{ role: 'user', content: userMessage }];
   const actionLog: string[] = [];
