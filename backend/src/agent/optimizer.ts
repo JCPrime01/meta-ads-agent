@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getAllAccountsInsights, getAllAccountsHierarchical, CampaignInsight } from '../meta/insights';
-import { pauseCampaign, activateCampaign, activateAdset, activateAd, pauseAdset, pauseAd, scaleBudget, updateDailyBudget } from '../meta/campaigns';
+import { pauseCampaign, activateCampaign, activateAdset, activateAd, pauseAdset, pauseAd, updateDailyBudget } from '../meta/campaigns';
 import { logAction, saveSnapshot, getRecentActions, getCampaignsPausedToday, getAdsetsPausedToday, getAdsPausedToday } from '../db/postgres';
 import { sendWhatsApp } from '../whatsapp';
 import { getAgentAccounts } from '../routes/agent';
@@ -56,7 +56,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'pause_adset',
-    description: 'Pausa um conjunto de anúncios. Use quando o conjunto está claramente drenando budget sem converter, com dados suficientes para ter certeza.',
+    description: 'Pausa um conjunto de anúncios. Use quando o conjunto está com CPL > R$6 e ≥1 lead, 0 leads com gasto ≥ R$10, ou CTR < 0,5% com gasto ≥ R$8.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -69,7 +69,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'pause_ad',
-    description: 'Pausa um criativo. Use quando o criativo está claramente com baixo engajamento (CTR muito baixo) ou CPL alto com dados suficientes.',
+    description: 'Pausa um criativo. Use quando o criativo está com CPL > R$5 e ≥1 lead, 0 leads com gasto ≥ R$8, ou CTR < 0,3% com gasto ≥ R$5 e ≥300 impressões.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -82,7 +82,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'activate_campaign',
-    description: 'Reativa uma campanha pausada HOJE. NUNCA use para campanhas pausadas antes de hoje — isso é crítico. Use apenas quando o portfólio mostrar melhora e a campanha tiver bom histórico de CPL.',
+    description: 'Reativa uma campanha que aparece na lista de PAUSADAS HOJE. NUNCA use para campanhas fora dessa lista.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -94,7 +94,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'activate_adset',
-    description: 'Reativa um conjunto pausado HOJE pelo agente. Use apenas se o contexto do portfólio melhorou desde a pausa e o CPL quando foi pausado era próximo do limite (não muito acima de R$6).',
+    description: 'Reativa um conjunto pausado HOJE pelo agente. Use apenas se o portfólio melhorou e o CPL quando pausado estava próximo do limite (entre R$6 e R$8).',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -106,7 +106,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'activate_ad',
-    description: 'Reativa um criativo pausado HOJE pelo agente. Use apenas se o contexto do portfólio melhorou desde a pausa e o CPL quando foi pausado era próximo do limite (não muito acima de R$5).',
+    description: 'Reativa um criativo pausado HOJE pelo agente. Use apenas se o portfólio melhorou e o CPL quando pausado estava próximo do limite (entre R$5 e R$7).',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -234,10 +234,13 @@ export async function runOptimizer(): Promise<void> {
   const activeCampaignIds = evaluable.map(c => c.campaign_id);
   const { adsets, ads } = await getAllAccountsHierarchical(activeCampaignIds);
 
-  // Candidatas a reativação: pausadas hoje (agente ou gestor), ainda pausadas
+  // Candidatas a reativação: pausadas hoje pelo agente OU pausadas manualmente (rodaram hoje mas estão inativas)
   const pausedTodayIds = await getCampaignsPausedToday();
   const reactivationCandidates = campaigns
-    .filter(c => pausedTodayIds.includes(c.campaign_id) && allowedAccounts.includes(c.account_id))
+    .filter(c =>
+      (pausedTodayIds.includes(c.campaign_id) || (c.status !== 'ACTIVE' && c.spend > 0)) &&
+      allowedAccounts.includes(c.account_id)
+    )
     .map(c => ({
       id: c.campaign_id,
       nome: c.campaign_name.slice(0, 50),
@@ -305,6 +308,8 @@ export async function runOptimizer(): Promise<void> {
       custo_por_lp_view: a.cost_per_lp_view > 0 ? +a.cost_per_lp_view.toFixed(2) : 0,
     }));
 
+  console.log(`[agent] campanhas: ${evaluable.length} | adsets: ${adsetSummary.length} | criativos: ${adSummary.length}`);
+
   const nowBRT = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const systemPrompt = `Você é um media buyer sênior especializado em Meta Ads para iGaming e apostas esportivas no Brasil, com foco em aquisição de depositantes (FTD), CPA gaming e escala agressiva no mercado LATAM.
 
@@ -344,7 +349,7 @@ export async function runOptimizer(): Promise<void> {
    - Sem padrão claro → reduce_budget e observe mais um ciclo.
 
 **Reativação de campanhas pausadas hoje:**
-Você receberá uma lista de campanhas pausadas HOJE (pelo agente ou pelo gestor). Você pode reativar usando activate_campaign APENAS para essas. NUNCA reative campanhas que não estejam nessa lista — elas foram pausadas estrategicamente.
+Você receberá uma lista de campanhas pausadas HOJE (pelo agente ou pelo gestor — inclusive pausas manuais via Meta). Você pode reativar usando activate_campaign APENAS para essas. NUNCA reative campanhas que não estejam nessa lista.
 
 Critérios para reativar campanha:
 - O CPL médio do portfólio ativo agora está significativamente melhor do que quando ela foi pausada.
@@ -354,10 +359,10 @@ Critérios para reativar campanha:
 
 **Reativação de conjuntos e criativos pausados hoje:**
 Você também receberá listas de conjuntos (activate_adset) e criativos (activate_ad) pausados HOJE pelo agente. Critérios para reativar:
-- Conjunto: CPL quando pausado estava entre R$6 e R$8 (próximo do limite) E o portfólio ativo agora tem CPL médio muito melhor — pode ser que era um problema pontual.
-- Criativo: CPL quando pausado estava entre R$5 e R$7 E outros criativos da mesma campanha agora estão performando pior — pode valer dar mais uma chance.
+- Conjunto: CPL quando pausado estava entre R$6 e R$8 E o portfólio ativo agora tem CPL médio muito melhor — pode ser problema pontual.
+- Criativo: CPL quando pausado estava entre R$5 e R$7 E outros criativos da mesma campanha agora estão performando pior.
 - Faz pelo menos 1 ciclo (30 min) desde a pausa.
-- Se CPL quando pausado estava acima de R$10 (conjunto) ou R$8 (criativo) — não reative, foi problema claro.
+- Se CPL quando pausado estava acima de R$10 (conjunto) ou R$8 (criativo) — não reative.
 
 **Aprenda com o gestor:**
 No histórico você verá ações marcadas como 👤 GESTOR (feitas manualmente pelo dono das contas) e 🤖 AGENTE (suas próprias ações). Preste atenção especial nas ações do gestor:
@@ -427,8 +432,6 @@ ${JSON.stringify(adSummary, null, 2)}
 Analise o portfólio completo e tome as decisões que um gestor experiente tomaria agora.
 
 IMPORTANTE: Para cada campanha, conjunto e criativo analisado, você DEVE obrigatoriamente chamar uma ferramenta — pause_campaign, scale_budget, reduce_budget, pause_adset, pause_ad, activate_campaign, activate_adset, activate_ad, send_alert ou do_nothing. Não responda com texto. Cada item analisado precisa de uma chamada de ferramenta correspondente. Comece pelas campanhas, depois conjuntos, depois criativos.`;
-
-  console.log(`[agent] campanhas: ${evaluable.length} | adsets: ${adsetSummary.length} | criativos: ${adSummary.length}`);
 
   const messages: MessageParam[] = [{ role: 'user', content: userMessage }];
   const actionLog: string[] = [];

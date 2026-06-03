@@ -102,11 +102,11 @@ export async function getAdsetsPausedToday(): Promise<{ id: string; cpl_quando_p
   const r = await pool.query(`
     SELECT DISTINCT ON (campaign_id) campaign_id, value_actual
     FROM agent_actions
-    WHERE action IN ('PAUSE_ADSET')
+    WHERE action = 'PAUSE_ADSET'
       AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
       AND campaign_id NOT IN (
         SELECT campaign_id FROM agent_actions
-        WHERE action IN ('ACTIVATE_ADSET')
+        WHERE action = 'ACTIVATE_ADSET'
           AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
       )
     ORDER BY campaign_id, created_at DESC
@@ -121,11 +121,11 @@ export async function getAdsPausedToday(): Promise<{ id: string; cpl_quando_paus
   const r = await pool.query(`
     SELECT DISTINCT ON (campaign_id) campaign_id, value_actual
     FROM agent_actions
-    WHERE action IN ('PAUSE_AD')
+    WHERE action = 'PAUSE_AD'
       AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
       AND campaign_id NOT IN (
         SELECT campaign_id FROM agent_actions
-        WHERE action IN ('ACTIVATE_AD')
+        WHERE action = 'ACTIVATE_AD'
           AND created_at AT TIME ZONE 'America/Sao_Paulo' >= CURRENT_DATE
       )
     ORDER BY campaign_id, created_at DESC

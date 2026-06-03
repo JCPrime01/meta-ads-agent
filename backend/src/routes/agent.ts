@@ -28,7 +28,7 @@ async function loadSettings() {
   console.log(`[agent] contas carregadas: ${agentAccounts.join(', ')}`);
 }
 
-// Carrega as configurações salvas na inicialização do servidor
+// Carrega configurações salvas na inicialização — evita gerenciar contas erradas antes do dashboard abrir
 loadSettings().catch(console.error);
 
 export function isAgentEnabled(): boolean {
