@@ -433,17 +433,21 @@ Analise o portfólio completo e tome as decisões que um gestor experiente tomar
 
 IMPORTANTE: Para cada campanha, conjunto e criativo analisado, você DEVE obrigatoriamente chamar uma ferramenta — pause_campaign, scale_budget, reduce_budget, pause_adset, pause_ad, activate_campaign, activate_adset, activate_ad, send_alert ou do_nothing. Não responda com texto. Cada item analisado precisa de uma chamada de ferramenta correspondente. Comece pelas campanhas, depois conjuntos, depois criativos.`;
 
+  console.log(`[agent] campanhas: ${evaluable.length} | adsets: ${adsetSummary.length} | criativos: ${adSummary.length}`);
+
   const messages: MessageParam[] = [{ role: 'user', content: userMessage }];
   const actionLog: string[] = [];
 
   while (true) {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8096,
+      max_tokens: 16000,
       system: systemPrompt,
       tools: TOOLS,
       messages,
     });
+
+    console.log(`[agent] stop_reason: ${response.stop_reason} | tool_calls: ${response.content.filter(b => b.type === 'tool_use').length}`);
 
     messages.push({ role: 'assistant', content: response.content });
 
