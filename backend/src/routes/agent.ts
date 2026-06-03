@@ -5,14 +5,14 @@ const ALL_ACCOUNTS = [
   'act_1095859619406442',
   'act_1628949641648813',
   'act_1520081442881968',
-  'act_1430948701654012',
+  'act_1430948741654012',
   'act_1322469786598233',
 ];
 
 const router = Router();
 
 let agentEnabled = process.env.AGENT_ENABLED !== 'false';
-let agentAccounts: string[] = [...ALL_ACCOUNTS];
+let agentAccounts: string[] = [];
 let settingsLoaded = false;
 
 async function loadSettings() {
@@ -25,7 +25,11 @@ async function loadSettings() {
     const envAccounts = (process.env.AGENT_ACCOUNTS || '').split(',').map(s => s.trim()).filter(Boolean);
     agentAccounts = envAccounts.length > 0 ? envAccounts : [...ALL_ACCOUNTS];
   }
+  console.log(`[agent] contas carregadas: ${agentAccounts.join(', ')}`);
 }
+
+// Carrega as configurações salvas na inicialização do servidor
+loadSettings().catch(console.error);
 
 export function isAgentEnabled(): boolean {
   return agentEnabled;
