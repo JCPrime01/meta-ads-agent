@@ -5,6 +5,7 @@ import { logAction } from '../db/postgres';
 
 const router = Router();
 
+const BUDGET_MAX = parseFloat(process.env.AGENT_BUDGET_MAX || '5000');
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let cache: { data: CampaignInsight[]; ts: number } | null = null;
 
@@ -18,7 +19,8 @@ router.get('/', async (req, res) => {
     cache = { data, ts: Date.now() };
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error('[campaigns] GET /:', err);
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
@@ -37,7 +39,8 @@ router.post('/:id/pause', async (req, res) => {
     await logManual(req.params.id, 'MANUAL_PAUSE', `Pausada manualmente. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}, Gasto: R$${c?.spend?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error('[campaigns] POST /pause:', err);
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
@@ -48,13 +51,18 @@ router.post('/:id/activate', async (req, res) => {
     await logManual(req.params.id, 'MANUAL_ACTIVATE', `Reativada manualmente. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}, Gasto: R$${c?.spend?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error('[campaigns] POST /activate:', err);
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
 router.post('/:id/budget', async (req, res) => {
+  const budget = parseFloat(req.body?.budget);
+  if (isNaN(budget) || budget <= 0 || budget > BUDGET_MAX) {
+    res.status(400).json({ error: `Budget inválido. Deve ser entre R$0,01 e R$${BUDGET_MAX}` });
+    return;
+  }
   try {
-    const { budget } = req.body as { budget: number };
     await updateDailyBudget(req.params.id, budget);
     const c = cache?.data.find(x => x.campaign_id === req.params.id);
     const prev = c?.daily_budget ?? 0;
@@ -62,7 +70,8 @@ router.post('/:id/budget', async (req, res) => {
     await logManual(req.params.id, action, `Budget: R$${prev.toFixed(2)} → R$${budget.toFixed(2)}. CPL: R$${c?.cpl?.toFixed(2) ?? '?'}`, c?.cpl ?? 0);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error('[campaigns] POST /budget:', err);
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
