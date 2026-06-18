@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { getSetting, setSetting } from '../db/postgres';
 
-const ALL_ACCOUNTS = [
-  'act_1095859619406442',
-  'act_1628949641648813',
-  'act_1520081442881968',
-  'act_1430948741654012',
-  'act_1322469786598233',
-];
+function getAllAccounts(): string[] {
+  const env = (process.env.META_AD_ACCOUNTS || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (env.length === 0) {
+    console.warn('[agent] META_AD_ACCOUNTS não configurado — nenhuma conta disponível');
+  }
+  return env;
+}
 
 const router = Router();
 
@@ -18,17 +18,16 @@ let settingsLoaded = false;
 async function loadSettings() {
   if (settingsLoaded) return;
   settingsLoaded = true;
+  const allAccounts = getAllAccounts();
   const savedAccounts = await getSetting('agent_accounts').catch(() => null);
   if (savedAccounts) {
-    agentAccounts = savedAccounts.split(',').filter(a => ALL_ACCOUNTS.includes(a));
+    agentAccounts = savedAccounts.split(',').filter(a => allAccounts.includes(a));
   } else {
-    const envAccounts = (process.env.AGENT_ACCOUNTS || '').split(',').map(s => s.trim()).filter(Boolean);
-    agentAccounts = envAccounts.length > 0 ? envAccounts : [...ALL_ACCOUNTS];
+    agentAccounts = [...allAccounts];
   }
-  console.log(`[agent] contas carregadas: ${agentAccounts.join(', ')}`);
+  console.log(`[agent] contas carregadas: ${agentAccounts.length}`);
 }
 
-// Carrega configurações salvas na inicialização — evita gerenciar contas erradas antes do dashboard abrir
 loadSettings().catch(console.error);
 
 export function isAgentEnabled(): boolean {
@@ -51,14 +50,15 @@ router.post('/toggle', (_req, res) => {
 });
 
 router.post('/accounts', async (req, res) => {
+  const allAccounts = getAllAccounts();
   const { accounts } = req.body as { accounts: string[] };
   if (!Array.isArray(accounts) || accounts.length === 0) {
     res.status(400).json({ error: 'Selecione ao menos uma conta.' });
     return;
   }
-  agentAccounts = accounts.filter(a => ALL_ACCOUNTS.includes(a));
+  agentAccounts = accounts.filter(a => allAccounts.includes(a));
   await setSetting('agent_accounts', agentAccounts.join(',')).catch(console.error);
-  console.log(`[agent] contas atualizadas: ${agentAccounts.join(', ')}`);
+  console.log(`[agent] contas atualizadas: ${agentAccounts.length}`);
   res.json({ enabled: agentEnabled, accounts: agentAccounts });
 });
 

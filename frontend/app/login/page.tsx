@@ -2,16 +2,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { login, isLoggedIn } from '@/lib/api';
-import { Bot } from 'lucide-react';
+import { Bot, Shield } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [require2fa, setRequire2fa] = useState(false);
+  const [is2faEnabled, setIs2faEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isLoggedIn()) router.replace('/');
+    if (isLoggedIn()) { router.replace('/'); return; }
+    fetch('/api/backend/auth/2fa/status')
+      .then(r => r.json())
+      .then(d => setIs2faEnabled(d.enabled))
+      .catch(() => {});
   }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -19,11 +26,14 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await login(password);
+      const res = await login(password, is2faEnabled || require2fa ? code : undefined);
       if (res.ok) {
         router.replace('/');
+      } else if (res.require2fa) {
+        setRequire2fa(true);
+        setError('');
       } else {
-        setError(res.error ?? 'Senha incorreta');
+        setError(res.error ?? 'Credenciais inválidas');
       }
     } catch {
       setError('Erro ao conectar ao servidor');
@@ -31,6 +41,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  const show2fa = is2faEnabled || require2fa;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
@@ -54,12 +66,32 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              autoFocus
+              autoFocus={!require2fa}
               required
               placeholder="••••••••"
               className="bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/30 placeholder:text-white/20 transition-colors"
             />
           </div>
+
+          {show2fa && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-white/50 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                <Shield size={11} />
+                Código 2FA (Google Authenticator)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                autoFocus={require2fa}
+                placeholder="000000"
+                className="bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/30 placeholder:text-white/20 transition-colors tracking-[0.3em] text-center"
+              />
+            </div>
+          )}
 
           {error && (
             <p className="text-red-400 text-xs text-center">{error}</p>
@@ -67,7 +99,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !password || (show2fa && code.length !== 6)}
             className="bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold py-3 rounded-xl text-sm transition-colors"
           >
             {loading ? 'Entrando...' : 'Entrar'}

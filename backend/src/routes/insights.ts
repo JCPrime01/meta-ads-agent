@@ -30,6 +30,10 @@ router.get('/snapshots', async (req, res) => {
 
 // Diagnóstico IA de uma campanha específica
 router.get('/diagnose/:campaignId', async (req, res) => {
+  if (!/^\d+$/.test(req.params.campaignId)) {
+    res.status(400).json({ error: 'ID inválido' });
+    return;
+  }
   try {
     const campaigns = await getAllAccountsInsights();
     const campaign = campaigns.find(c => c.campaign_id === req.params.campaignId);

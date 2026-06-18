@@ -66,11 +66,11 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return r.json();
 }
 
-export async function login(password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
+export async function login(password: string, code?: string): Promise<{ ok: boolean; token?: string; error?: string; require2fa?: boolean }> {
   const r = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ password, ...(code ? { code } : {}) }),
   });
   const data = await r.json();
   if (r.ok && data.token) {
