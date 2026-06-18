@@ -36,56 +36,87 @@ export const ACCOUNT_NAMES: Record<string, string> = {
   act_1322469786598233: 'CA 05',
 };
 
-export async function getCampaigns(force = false): Promise<Campaign[]> {
-  const url = force ? `${BASE}/campaigns?force=1` : `${BASE}/campaigns`;
-  const r = await fetch(url, { cache: 'no-store' });
-  if (!r.ok) throw new Error('Erro ao buscar campanhas');
+function getToken(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('tk') ?? '';
+}
+
+export function isLoggedIn(): boolean {
+  return Boolean(getToken());
+}
+
+export function logout(): void {
+  localStorage.removeItem('tk');
+  window.location.href = '/login';
+}
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const r = await fetch(`${BASE}${path}`, { ...init, headers, cache: 'no-store' });
+  if (r.status === 401) {
+    logout();
+    throw new Error('Sessão expirada');
+  }
   return r.json();
+}
+
+export async function login(password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
+  const r = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  const data = await r.json();
+  if (r.ok && data.token) {
+    localStorage.setItem('tk', data.token);
+  }
+  return data;
+}
+
+export async function getCampaigns(force = false): Promise<Campaign[]> {
+  return req<Campaign[]>(force ? '/campaigns?force=1' : '/campaigns');
 }
 
 export async function getActions(): Promise<AgentAction[]> {
-  const r = await fetch(`${BASE}/insights/actions`, { cache: 'no-store' });
-  if (!r.ok) throw new Error('Erro ao buscar ações');
-  return r.json();
+  return req<AgentAction[]>('/insights/actions');
 }
 
 export async function getDiagnosis(campaignId: string): Promise<{ diagnosis: string; campaign: Campaign }> {
-  const r = await fetch(`${BASE}/insights/diagnose/${campaignId}`);
-  if (!r.ok) throw new Error('Erro ao diagnosticar');
-  return r.json();
+  return req(`/insights/diagnose/${campaignId}`);
 }
 
 export async function pauseCampaign(campaignId: string): Promise<void> {
-  await fetch(`${BASE}/campaigns/${campaignId}/pause`, { method: 'POST' });
+  await req(`/campaigns/${campaignId}/pause`, { method: 'POST' });
 }
 
 export async function activateCampaign(campaignId: string): Promise<void> {
-  await fetch(`${BASE}/campaigns/${campaignId}/activate`, { method: 'POST' });
+  await req(`/campaigns/${campaignId}/activate`, { method: 'POST' });
 }
 
 export async function updateBudget(campaignId: string, budget: number): Promise<void> {
-  await fetch(`${BASE}/campaigns/${campaignId}/budget`, {
+  await req(`/campaigns/${campaignId}/budget`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ budget }),
   });
 }
 
 export async function getAgentStatus(): Promise<{ enabled: boolean; accounts: string[] }> {
-  const r = await fetch(`${BASE}/agent/status`, { cache: 'no-store' });
-  return r.json();
+  return req('/agent/status');
 }
 
 export async function toggleAgent(): Promise<{ enabled: boolean; accounts: string[] }> {
-  const r = await fetch(`${BASE}/agent/toggle`, { method: 'POST' });
-  return r.json();
+  return req('/agent/toggle', { method: 'POST' });
 }
 
 export async function updateAgentAccounts(accounts: string[]): Promise<{ enabled: boolean; accounts: string[] }> {
-  const r = await fetch(`${BASE}/agent/accounts`, {
+  return req('/agent/accounts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accounts }),
   });
-  return r.json();
 }

@@ -1,17 +1,23 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts, isLoggedIn, logout } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import CampaignRow from '@/components/CampaignRow';
 import AgentLog from '@/components/AgentLog';
-import { RefreshCw, Bot, ChevronDown } from 'lucide-react';
+import { RefreshCw, Bot, ChevronDown, LogOut } from 'lucide-react';
 
 const ALL_ACCOUNTS = 'all';
 
 export default function Home() {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [actions, setActions] = useState<AgentAction[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoggedIn()) router.replace('/login');
+  }, [router]);
   const [tab, setTab] = useState<'active' | 'paused' | 'agent'>('active');
   const [refreshing, setRefreshing] = useState(false);
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
@@ -133,6 +139,13 @@ export default function Home() {
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
           >
             <RefreshCw size={15} className={`text-white/40 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={logout}
+            title="Sair"
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+          >
+            <LogOut size={15} className="text-white/40" />
           </button>
         </div>
       </div>

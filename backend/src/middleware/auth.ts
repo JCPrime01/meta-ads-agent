@@ -1,29 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
-import { timingSafeEqual } from 'crypto';
+import jwt from 'jsonwebtoken';
 
-export function requireApiSecret(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env.API_SECRET;
-  if (!secret) {
-    console.error('[auth] API_SECRET não configurado — rejeitando todas as requisições');
-    res.status(500).json({ error: 'Server misconfigured' });
-    return;
+export function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (!s || s === 'changeme') {
+    console.error('[auth] JWT_SECRET inválido — abortando');
+    process.exit(1);
   }
+  return s;
+}
 
+export function signToken(): string {
+  return jwt.sign({ role: 'admin' }, getJwtSecret(), { expiresIn: '7d' });
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const auth = req.headers.authorization;
-  const provided = auth?.startsWith('Bearer ') ? auth.slice(7) : '';
-
-  let valid = false;
-  try {
-    const a = Buffer.from(provided);
-    const b = Buffer.from(secret);
-    valid = a.length === b.length && timingSafeEqual(a, b);
-  } catch {
-    valid = false;
-  }
-
-  if (!valid) {
+  const token = auth?.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  next();
+  try {
+    jwt.verify(token, getJwtSecret());
+    next();
+  } catch {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
 }

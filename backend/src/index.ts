@@ -5,10 +5,14 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { migrate } from './db/postgres';
 import { startCron } from './cron/optimizer';
+import authRouter from './routes/auth';
 import campaignsRouter from './routes/campaigns';
 import insightsRouter from './routes/insights';
 import agentRouter from './routes/agent';
-import { requireApiSecret } from './middleware/auth';
+import { requireAuth, getJwtSecret } from './middleware/auth';
+
+// Fail-fast se JWT_SECRET inválido
+getJwtSecret();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -38,7 +42,9 @@ app.use(rateLimit({
 app.use(express.json({ limit: '64kb' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
-app.use(requireApiSecret);
+app.use('/auth', authRouter);
+
+app.use(requireAuth);
 app.use('/campaigns', campaignsRouter);
 app.use('/insights', insightsRouter);
 app.use('/agent', agentRouter);
