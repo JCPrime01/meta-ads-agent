@@ -46,4 +46,21 @@ router.get('/diagnose/:campaignId', async (req, res) => {
   }
 });
 
+// Adsets de uma campanha específica
+router.get('/adsets/:campaignId', async (req, res) => {
+  if (!/^\d+$/.test(req.params.campaignId)) {
+    res.status(400).json({ error: 'ID inválido' });
+    return;
+  }
+  try {
+    const { getAllAccountsHierarchical } = require('../meta/insights');
+    const { adsets } = await getAllAccountsHierarchical([req.params.campaignId]);
+    const filtered = (adsets as Array<{ campaign_id: string }>).filter(a => a.campaign_id === req.params.campaignId);
+    res.json(filtered);
+  } catch (err) {
+    console.error('[insights] GET /adsets:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 export default router;
