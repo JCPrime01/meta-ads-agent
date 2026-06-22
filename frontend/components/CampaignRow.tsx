@@ -99,9 +99,16 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
     <>
       {/* ── DESKTOP ROW ── */}
       <tr className="hidden sm:table-row border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group">
-        {/* Status dot */}
+        {/* Status dot — clica para pausar/ativar */}
         <td className="py-3 pl-4 pr-2 w-8">
-          <div className={`w-2.5 h-2.5 rounded-full ${dotClass}`} />
+          <button
+            onClick={toggleStatus}
+            disabled={loading}
+            title={c.status === 'ACTIVE' ? 'Pausar campanha' : 'Ativar campanha'}
+            className="group/dot flex items-center justify-center w-6 h-6 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className={`w-2.5 h-2.5 rounded-full transition-transform group-hover/dot:scale-125 ${loading ? 'animate-pulse' : ''} ${dotClass}`} />
+          </button>
         </td>
         {/* Campaign name + hover actions */}
         <td className="py-3 px-2 max-w-[260px]">
@@ -159,14 +166,6 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
         {/* CTR */}
         <td className="py-3 px-3 text-right">
           <span className={`text-sm tabular-nums ${c.ctr < 0.8 && c.ctr > 0 ? 'text-yellow-400' : 'text-white/50'}`}>{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</span>
-        </td>
-        {/* Pause/Activate */}
-        <td className="py-3 pl-2 pr-4 w-10">
-          <button onClick={toggleStatus} disabled={loading}
-            className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${c.status === 'ACTIVE' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'}`}
-            title={c.status === 'ACTIVE' ? 'Pausar' : 'Ativar'}>
-            {c.status === 'ACTIVE' ? <Pause size={13}/> : <Play size={13}/>}
-          </button>
         </td>
       </tr>
 
