@@ -114,8 +114,8 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
 
   return (
     <>
-      {/* ── DESKTOP ROW ── */}
-      <tr className="hidden sm:table-row border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group">
+      {/* ── TABLE ROW (desktop + mobile scroll) ── */}
+      <tr className="border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group">
         {/* Toggle switch */}
         <td className="py-3 pl-4 pr-2 w-12">
           <Toggle
@@ -181,57 +181,6 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
         {/* CTR */}
         <td className="py-3 px-3 pr-4 text-right">
           <span className={`text-sm tabular-nums ${c.ctr < 0.8 && c.ctr > 0 ? 'text-yellow-400' : 'text-white/50'}`}>{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</span>
-        </td>
-      </tr>
-
-      {/* ── MOBILE CARD ── */}
-      <tr className="sm:hidden">
-        <td colSpan={9} className="px-3 py-2">
-          <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Toggle active={isActive} loading={loading} onToggle={toggleStatus} title={isActive ? 'Pausar' : 'Ativar'} />
-                <span className="text-sm font-semibold text-white leading-tight truncate">{name}</span>
-              </div>
-              <span className={`text-xs shrink-0 ${isActive ? 'text-white/40' : 'text-white/25'}`}>{label}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Leads', value: c.leads > 0 ? String(c.leads) : '—', color: c.leads > 0 ? 'text-white/90' : 'text-white/25' },
-                { label: 'CPL', value: c.cpl > 0 ? `R$${c.cpl.toFixed(2)}` : '—', color: cplColor(c.cpl) },
-                { label: 'Gasto', value: `R$${c.spend.toFixed(0)}`, color: 'text-white/80' },
-                { label: 'Impres.', value: c.impressions > 0 ? c.impressions.toLocaleString('pt-BR') : '—', color: 'text-white/50' },
-                { label: 'CTR', value: c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—', color: c.ctr < 0.8 && c.ctr > 0 ? 'text-yellow-400' : 'text-white/50' },
-              ].map(m => (
-                <div key={m.label} className="bg-white/[0.03] rounded-xl p-2.5 text-center">
-                  <div className="text-[9px] text-white/30 uppercase tracking-wider mb-1">{m.label}</div>
-                  <div className={`text-sm font-bold tabular-nums ${m.color}`}>{m.value}</div>
-                </div>
-              ))}
-              <div className="bg-white/[0.03] rounded-xl p-2.5 text-center">
-                <div className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Budget</div>
-                {editingBudget ? (
-                  <div className="flex items-center gap-1 justify-center">
-                    <input type="number" value={budgetVal} onChange={e => setBudgetVal(e.target.value)}
-                      className="w-16 bg-white/10 text-white text-xs rounded px-1 py-0.5 text-center focus:outline-none" autoFocus />
-                    <button onClick={handleBudgetSave} disabled={loading} className="text-green-400"><Check size={11}/></button>
-                  </div>
-                ) : (
-                  <button onClick={() => setEditingBudget(true)} className="text-sm font-bold text-white/50 tabular-nums">R${c.daily_budget.toFixed(0)}</button>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleToggleAdsets} disabled={loadingAdsets}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-white/5 text-white/50 text-xs font-semibold hover:bg-white/10 transition-colors">
-                {showAdsets ? <ChevronUp size={13}/> : <ChevronDown size={13}/>} Conjuntos
-              </button>
-              <button onClick={handleDiagnose} disabled={loading}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-yellow-500/10 text-yellow-400 text-xs font-semibold">
-                <Zap size={13}/> Diagnóstico
-              </button>
-            </div>
-          </div>
         </td>
       </tr>
 

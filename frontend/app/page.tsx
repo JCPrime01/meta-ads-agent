@@ -183,10 +183,9 @@ export default function Home() {
             Nenhuma campanha {tab === 'active' ? 'ativa' : 'pausada'}{accountFilter !== ALL_ACCOUNTS ? ` na ${ACCOUNT_NAMES[accountFilter]}` : ''}.
           </div>
         ) : (
-          /* Desktop: scrollable table. Mobile: plain table (cards inside handle their own layout) */
-          <div className="rounded-2xl border border-white/10 sm:overflow-x-auto">
-            <table className="w-full sm:min-w-[820px] text-sm border-collapse">
-              <thead className="hidden sm:table-header-group">
+          <div className="rounded-2xl border border-white/10 overflow-x-auto">
+            <table className="w-full min-w-[700px] text-sm border-collapse">
+              <thead>
                 <tr className="border-b border-white/10 bg-white/[0.02]">
                   {['', 'Campanha', 'Veiculação', 'Leads', 'CPL', 'Orçamento', 'Gasto', 'Impressões', 'CTR'].map((h, i) => (
                     <th
