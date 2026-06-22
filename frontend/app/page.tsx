@@ -76,7 +76,6 @@ export default function Home() {
   const active = filtered.filter(c => c.status === 'ACTIVE');
   const paused = filtered.filter(c => c.status !== 'ACTIVE');
 
-  // totalSpend e totalLeads incluem pausadas (pode ter gasto antes de pausar hoje)
   const totalSpend = filtered.reduce((s, c) => s + c.spend, 0);
   const totalLeads = filtered.reduce((s, c) => s + c.leads, 0);
   const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
@@ -184,9 +183,10 @@ export default function Home() {
             Nenhuma campanha {tab === 'active' ? 'ativa' : 'pausada'}{accountFilter !== ALL_ACCOUNTS ? ` na ${ACCOUNT_NAMES[accountFilter]}` : ''}.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-white/10">
-            <table className="w-full min-w-[820px] text-sm border-collapse">
-              <thead>
+          /* Desktop: scrollable table. Mobile: plain table (cards inside handle their own layout) */
+          <div className="rounded-2xl border border-white/10 sm:overflow-x-auto">
+            <table className="w-full sm:min-w-[820px] text-sm border-collapse">
+              <thead className="hidden sm:table-header-group">
                 <tr className="border-b border-white/10 bg-white/[0.02]">
                   {['Campanha', 'Status', 'Leads', 'CPL', 'Orçamento', 'Gasto', 'CTR', 'CPC', ''].map((h, i) => (
                     <th
