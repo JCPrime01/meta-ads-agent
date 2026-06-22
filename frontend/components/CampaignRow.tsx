@@ -1,20 +1,16 @@
 'use client';
 import { useState } from 'react';
 import { Campaign, AdsetInsight, pauseCampaign, activateCampaign, updateBudget, getDiagnosis, getAdsets, pauseAdset, activateAdset } from '@/lib/api';
-import { Pause, Play, Zap, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
+import { Zap, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 
 interface Props {
   campaign: Campaign;
   onRefresh: () => void;
 }
 
-function deliveryInfo(c: Campaign): { label: string; dot: string } {
-  if (c.status === 'ACTIVE') {
-    if (c.spend > 0) return { label: 'Ativo', dot: 'bg-blue-400' };
-    return { label: 'Programado', dot: 'ring-1 ring-blue-400 bg-transparent' };
-  }
-  if (c.status === 'CAMPAIGN_PAUSED') return { label: 'Pausada', dot: 'bg-white/20' };
-  return { label: c.status === 'PAUSED' ? 'Pausada' : c.status, dot: 'bg-white/20' };
+function deliveryLabel(status: string, spend: number): string {
+  if (status === 'ACTIVE') return spend > 0 ? 'Ativo' : 'Programado';
+  return 'Pausado';
 }
 
 function cplColor(cpl: number) {
@@ -24,30 +20,48 @@ function cplColor(cpl: number) {
   return 'text-white/80';
 }
 
-function adsetDeliveryDot(status: string) {
-  if (status === 'ACTIVE') return 'bg-blue-400';
-  return 'bg-white/20';
+function Toggle({ active, loading, onToggle, title }: { active: boolean; loading: boolean; onToggle: () => void; title: string }) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={loading}
+      title={title}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:cursor-not-allowed ${active ? 'bg-blue-500' : 'bg-white/20'} ${loading ? 'opacity-60' : ''}`}
+    >
+      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${active ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+    </button>
+  );
 }
 
 export default function CampaignRow({ campaign: c, onRefresh }: Props) {
+  const [localStatus, setLocalStatus] = useState(c.status);
   const [loading, setLoading] = useState(false);
   const [diagnosis, setDiagnosis] = useState('');
   const [showDiag, setShowDiag] = useState(false);
   const [showAdsets, setShowAdsets] = useState(false);
   const [adsets, setAdsets] = useState<AdsetInsight[]>([]);
   const [loadingAdsets, setLoadingAdsets] = useState(false);
+  const [adsetStatuses, setAdsetStatuses] = useState<Record<string, string>>({});
   const [togglingAdset, setTogglingAdset] = useState<string | null>(null);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetVal, setBudgetVal] = useState(String(c.daily_budget.toFixed(0)));
-  const { label: deliveryLabel, dot: dotClass } = deliveryInfo(c);
+
+  const isActive = localStatus === 'ACTIVE';
+  const label = deliveryLabel(localStatus, c.spend);
   const name = c.campaign_name.replace(/^\S+\s+/g, '').slice(0, 60);
 
   async function toggleStatus() {
+    const next = isActive ? 'PAUSED' : 'ACTIVE';
+    setLocalStatus(next); // otimista: anima imediatamente
     setLoading(true);
     try {
-      c.status === 'ACTIVE' ? await pauseCampaign(c.campaign_id) : await activateCampaign(c.campaign_id);
+      isActive ? await pauseCampaign(c.campaign_id) : await activateCampaign(c.campaign_id);
       onRefresh();
-    } finally { setLoading(false); }
+    } catch {
+      setLocalStatus(localStatus); // reverte se falhar
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleDiagnose() {
@@ -82,17 +96,20 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
   }
 
   async function handleToggleAdset(a: AdsetInsight) {
+    const cur = adsetStatuses[a.adset_id] ?? a.status;
+    const next = cur === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+    setAdsetStatuses(prev => ({ ...prev, [a.adset_id]: next })); // otimista
     setTogglingAdset(a.adset_id);
     try {
-      if (a.status === 'ACTIVE') {
-        await pauseAdset(a.adset_id);
-      } else {
-        await activateAdset(a.adset_id);
-      }
-      // refresh adsets list
+      cur === 'ACTIVE' ? await pauseAdset(a.adset_id) : await activateAdset(a.adset_id);
       const data = await getAdsets(c.campaign_id);
       setAdsets(data);
-    } finally { setTogglingAdset(null); }
+      setAdsetStatuses({});
+    } catch {
+      setAdsetStatuses(prev => ({ ...prev, [a.adset_id]: cur })); // reverte
+    } finally {
+      setTogglingAdset(null);
+    }
   }
 
   return (
@@ -101,14 +118,12 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
       <tr className="hidden sm:table-row border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group">
         {/* Toggle switch */}
         <td className="py-3 pl-4 pr-2 w-12">
-          <button
-            onClick={toggleStatus}
-            disabled={loading}
-            title={c.status === 'ACTIVE' ? 'Pausar campanha' : 'Ativar campanha'}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${c.status === 'ACTIVE' ? 'bg-blue-500' : 'bg-white/20'}`}
-          >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${c.status === 'ACTIVE' ? 'translate-x-[18px]' : 'translate-x-[3px]'} ${loading ? 'animate-pulse' : ''}`} />
-          </button>
+          <Toggle
+            active={isActive}
+            loading={loading}
+            onToggle={toggleStatus}
+            title={isActive ? 'Pausar campanha' : 'Ativar campanha'}
+          />
         </td>
         {/* Campaign name + hover actions */}
         <td className="py-3 px-2 max-w-[260px]">
@@ -128,7 +143,7 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
         </td>
         {/* Delivery */}
         <td className="py-3 px-3 whitespace-nowrap">
-          <span className="text-xs text-white/50">{deliveryLabel}</span>
+          <span className={`text-xs ${isActive ? 'text-white/50' : 'text-white/25'}`}>{label}</span>
         </td>
         {/* Leads */}
         <td className="py-3 px-3 text-right">
@@ -164,21 +179,21 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
           <span className="text-sm tabular-nums text-white/50">{c.impressions > 0 ? c.impressions.toLocaleString('pt-BR') : '—'}</span>
         </td>
         {/* CTR */}
-        <td className="py-3 px-3 text-right">
+        <td className="py-3 px-3 pr-4 text-right">
           <span className={`text-sm tabular-nums ${c.ctr < 0.8 && c.ctr > 0 ? 'text-yellow-400' : 'text-white/50'}`}>{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</span>
         </td>
       </tr>
 
       {/* ── MOBILE CARD ── */}
       <tr className="sm:hidden">
-        <td colSpan={10} className="px-3 py-2">
+        <td colSpan={9} className="px-3 py-2">
           <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotClass}`} />
+                <Toggle active={isActive} loading={loading} onToggle={toggleStatus} title={isActive ? 'Pausar' : 'Ativar'} />
                 <span className="text-sm font-semibold text-white leading-tight truncate">{name}</span>
               </div>
-              <span className="text-xs text-white/40 shrink-0">{deliveryLabel}</span>
+              <span className={`text-xs shrink-0 ${isActive ? 'text-white/40' : 'text-white/25'}`}>{label}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -215,10 +230,6 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-yellow-500/10 text-yellow-400 text-xs font-semibold">
                 <Zap size={13}/> Diagnóstico
               </button>
-              <button onClick={toggleStatus} disabled={loading}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-colors ${c.status === 'ACTIVE' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
-                {c.status === 'ACTIVE' ? <><Pause size={13}/> Pausar</> : <><Play size={13}/> Ativar</>}
-              </button>
             </div>
           </div>
         </td>
@@ -227,53 +238,45 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
       {/* ── ADSETS EXPANSION ── */}
       {showAdsets && (
         <tr>
-          <td colSpan={10} className="pb-1 px-4 sm:pl-12">
+          <td colSpan={9} className="pb-1 px-4 sm:pl-14">
             {adsets.length === 0 ? (
               <div className="text-center text-white/20 text-xs py-3">Nenhum conjunto encontrado</div>
             ) : (
               <div className="flex flex-col gap-1">
-                {adsets.map(a => (
-                  <div key={a.adset_id}
-                    className="bg-white/[0.015] border border-white/[0.05] rounded-xl px-4 py-2.5 flex items-center gap-3 group/adset">
-                    {/* dot */}
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${adsetDeliveryDot(a.status)}`} />
-                    {/* name + status */}
-                    <div className="flex-1 min-w-0">
-                      <span className="text-xs text-white/60 truncate block">{a.adset_name}</span>
-                      <span className={`text-[10px] font-semibold ${a.status === 'ACTIVE' ? 'text-blue-400/70' : 'text-white/25'}`}>
-                        {a.status === 'ACTIVE' ? 'Ativo' : 'Pausado'}
-                      </span>
+                {adsets.map(a => {
+                  const adsetActive = (adsetStatuses[a.adset_id] ?? a.status) === 'ACTIVE';
+                  return (
+                    <div key={a.adset_id}
+                      className="bg-white/[0.015] border border-white/[0.05] rounded-xl px-4 py-2.5 flex items-center gap-3">
+                      <Toggle
+                        active={adsetActive}
+                        loading={togglingAdset === a.adset_id}
+                        onToggle={() => handleToggleAdset(a)}
+                        title={adsetActive ? 'Pausar conjunto' : 'Ativar conjunto'}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-white/60 truncate block">{a.adset_name}</span>
+                        <span className={`text-[10px] font-semibold ${adsetActive ? 'text-blue-400/70' : 'text-white/25'}`}>
+                          {adsetActive ? 'Ativo' : 'Pausado'}
+                        </span>
+                      </div>
+                      <div className="hidden sm:flex gap-4 shrink-0 text-right">
+                        <div>
+                          <div className="text-[9px] text-white/20 uppercase">Leads</div>
+                          <div className={`text-xs font-semibold tabular-nums ${a.leads > 0 ? 'text-white/80' : 'text-white/25'}`}>{a.leads || '—'}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-white/20 uppercase">CPL</div>
+                          <div className={`text-xs font-semibold tabular-nums ${cplColor(a.cpl)}`}>{a.cpl > 0 ? `R$${a.cpl.toFixed(2)}` : '—'}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-white/20 uppercase">Gasto</div>
+                          <div className="text-xs font-semibold tabular-nums text-white/50">R${a.spend.toFixed(0)}</div>
+                        </div>
+                      </div>
                     </div>
-                    {/* metrics */}
-                    <div className="hidden sm:flex gap-4 shrink-0 text-right">
-                      <div>
-                        <div className="text-[9px] text-white/20 uppercase">Leads</div>
-                        <div className={`text-xs font-semibold tabular-nums ${a.leads > 0 ? 'text-white/80' : 'text-white/25'}`}>{a.leads || '—'}</div>
-                      </div>
-                      <div>
-                        <div className="text-[9px] text-white/20 uppercase">CPL</div>
-                        <div className={`text-xs font-semibold tabular-nums ${cplColor(a.cpl)}`}>{a.cpl > 0 ? `R$${a.cpl.toFixed(2)}` : '—'}</div>
-                      </div>
-                      <div>
-                        <div className="text-[9px] text-white/20 uppercase">Gasto</div>
-                        <div className="text-xs font-semibold tabular-nums text-white/50">R${a.spend.toFixed(0)}</div>
-                      </div>
-                    </div>
-                    {/* pause/activate adset */}
-                    <button
-                      onClick={() => handleToggleAdset(a)}
-                      disabled={togglingAdset === a.adset_id}
-                      className={`p-1.5 rounded-lg opacity-0 group-hover/adset:opacity-100 transition-all shrink-0 ${
-                        a.status === 'ACTIVE'
-                          ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
-                          : 'bg-green-500/10 hover:bg-green-500/20 text-green-400'
-                      } ${togglingAdset === a.adset_id ? 'opacity-50 animate-pulse' : ''}`}
-                      title={a.status === 'ACTIVE' ? 'Pausar conjunto' : 'Ativar conjunto'}
-                    >
-                      {a.status === 'ACTIVE' ? <Pause size={12}/> : <Play size={12}/>}
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </td>
@@ -283,7 +286,7 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
       {/* ── DIAGNOSIS ── */}
       {showDiag && diagnosis && (
         <tr>
-          <td colSpan={10} className="pb-2 px-4 sm:pl-12">
+          <td colSpan={9} className="pb-2 px-4 sm:pl-14">
             <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-100/80 leading-relaxed">
               <span className="text-yellow-400 font-bold">🔍 Diagnóstico IA</span><br/>
               {diagnosis}
