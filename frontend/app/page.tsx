@@ -388,30 +388,35 @@ export default function Home() {
       {tab === 'agent' && (
         <div className="flex flex-col gap-4">
 
-          {/* Contas gerenciadas */}
+          {/* Status do agente por gestor */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
             <div className="flex items-center gap-2 text-xs text-white/50 font-semibold uppercase tracking-wider">
               <Bot size={12} />
-              <span>Contas gerenciadas pelo agente</span>
+              <span>Agente por gestor — ligue/desligue individualmente</span>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(ACCOUNT_NAMES).map(([id, name]) => {
-                const active = agentAccounts.includes(id);
-                return (
-                  <button
-                    key={id}
-                    onClick={() => handleToggleAccount(id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                      active
-                        ? 'bg-green-500/15 border-green-500/30 text-green-400'
-                        : 'bg-white/5 border-white/10 text-white/30 hover:text-white/50'
-                    }`}
-                  >
-                    {active ? '✓ ' : ''}{name}
-                  </button>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {gestores.filter(g => g.accounts.length > 0).map(g => (
+                <div key={g.id} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2">
+                  <div>
+                    <div className="text-xs font-semibold text-white/70">{g.name}</div>
+                    <div className="text-[10px] text-white/30">
+                      {g.accounts.map(a => ACCOUNT_NAMES[a.account_id] ?? a.account_id).join(' · ')}
+                    </div>
+                  </div>
+                  <GestorCard
+                    gestor={g}
+                    isSelected={false}
+                    onSelect={() => {}}
+                    onRefresh={() => getGestores().then(setGestores).catch(() => {})}
+                    canEdit={false}
+                    agentOnly
+                  />
+                </div>
+              ))}
             </div>
+            {gestores.filter(g => g.accounts.length > 0).length === 0 && (
+              <p className="text-xs text-white/25 italic">Nenhum gestor com contas atribuídas.</p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 text-xs text-white/30">

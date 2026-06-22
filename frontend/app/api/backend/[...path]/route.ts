@@ -25,3 +25,20 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const data = await r.json();
   return NextResponse.json(data, { status: r.status });
 }
+
+export async function PATCH(req: NextRequest, ctx: Ctx) {
+  const { path } = await ctx.params;
+  const url = `${BACKEND}/${path.join('/')}${req.nextUrl.search}`;
+  const body = await req.text();
+  const r = await fetch(url, { method: 'PATCH', headers: forwardAuth(req), body });
+  const data = await r.json();
+  return NextResponse.json(data, { status: r.status });
+}
+
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const { path } = await ctx.params;
+  const url = `${BACKEND}/${path.join('/')}${req.nextUrl.search}`;
+  const r = await fetch(url, { method: 'DELETE', headers: forwardAuth(req) });
+  const data = await r.json();
+  return NextResponse.json(data, { status: r.status });
+}
