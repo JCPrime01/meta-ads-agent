@@ -91,6 +91,9 @@ export async function migrate(): Promise<void> {
       PRIMARY KEY (gestor_id, account_id)
     );
   `);
+  await pool.query(`
+    ALTER TABLE gestores ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT false;
+  `);
   const client = await pool.connect();
   try {
     await seedGestores(client);
@@ -208,17 +211,35 @@ export async function getSnapshots(days = 7) {
 
 export async function getGestores() {
   const { rows } = await pool.query(`
-    SELECT g.id, g.name, g.color, g.is_director,
+    SELECT g.id, g.name, g.color, g.is_director, g.agent_enabled,
       COALESCE(
         json_agg(json_build_object('account_id', ga.account_id, 'project_name', ga.project_name))
         FILTER (WHERE ga.account_id IS NOT NULL), '[]'
       ) as accounts
     FROM gestores g
     LEFT JOIN gestor_accounts ga ON ga.gestor_id = g.id
-    GROUP BY g.id, g.name, g.color, g.is_director
+    GROUP BY g.id, g.name, g.color, g.is_director, g.agent_enabled
     ORDER BY g.name
   `);
   return rows;
+}
+
+export async function toggleGestorAgent(gestorId: string): Promise<boolean> {
+  const { rows } = await pool.query(
+    `UPDATE gestores SET agent_enabled = NOT agent_enabled WHERE id = $1 RETURNING agent_enabled`,
+    [gestorId]
+  );
+  return rows[0]?.agent_enabled ?? false;
+}
+
+export async function getGestorEnabledAccounts(): Promise<string[]> {
+  const { rows } = await pool.query(`
+    SELECT ga.account_id
+    FROM gestor_accounts ga
+    JOIN gestores g ON g.id = ga.gestor_id
+    WHERE g.agent_enabled = true
+  `);
+  return rows.map((r: { account_id: string }) => r.account_id);
 }
 
 export async function addGestorAccount(gestorId: string, accountId: string, projectName: string) {

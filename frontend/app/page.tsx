@@ -142,7 +142,7 @@ export default function Home() {
             <button
               onClick={handleToggleAgent}
               disabled={togglingAgent}
-              title={agentEnabled ? 'Agente ativo — clique para desativar' : 'Agente inativo — clique para ativar'}
+              title={agentEnabled ? 'Kill switch ON — agente pode rodar. Clique para bloquear tudo.' : 'Kill switch OFF — agente bloqueado globalmente. Clique para liberar.'}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                 agentEnabled
                   ? 'bg-green-500/10 text-green-400 hover:bg-green-500/20'

@@ -3,12 +3,18 @@ import { runOptimizer } from '../agent/optimizer';
 import { getAllAccountsInsights } from '../meta/insights';
 import { sendWhatsApp } from '../whatsapp';
 import { isAgentEnabled } from '../routes/agent';
+import { getGestorEnabledAccounts } from '../db/postgres';
 
 export function startCron(): void {
   // Ciclo principal — a cada 30min das 05h às 16h BRT (08h–19h UTC)
   cron.schedule('*/30 8-19 * * *', async () => {
     if (!isAgentEnabled()) {
-      console.log('[cron] agente desabilitado');
+      console.log('[cron] kill switch global — agente desabilitado');
+      return;
+    }
+    const enabledAccounts = await getGestorEnabledAccounts().catch(() => []);
+    if (enabledAccounts.length === 0) {
+      console.log('[cron] nenhum gestor com agente ativo');
       return;
     }
     try {

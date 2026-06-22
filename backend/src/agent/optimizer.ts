@@ -1,9 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getAllAccountsInsights, getAllAccountsHierarchical, CampaignInsight } from '../meta/insights';
 import { pauseCampaign, activateCampaign, activateAdset, activateAd, pauseAdset, pauseAd, updateDailyBudget } from '../meta/campaigns';
-import { logAction, saveSnapshot, getRecentActions, getCampaignsPausedToday, getAdsetsPausedToday, getAdsPausedToday } from '../db/postgres';
+import { logAction, saveSnapshot, getRecentActions, getCampaignsPausedToday, getAdsetsPausedToday, getAdsPausedToday, getGestorEnabledAccounts } from '../db/postgres';
 import { sendWhatsApp } from '../whatsapp';
-import { getAgentAccounts } from '../routes/agent';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -219,7 +218,7 @@ export async function runOptimizer(): Promise<void> {
   const campaigns = await getAllAccountsInsights();
   await saveSnapshot(campaigns);
 
-  const allowedAccounts = getAgentAccounts();
+  const allowedAccounts = await getGestorEnabledAccounts();
   const evaluable = campaigns.filter(c =>
     c.status === 'ACTIVE' &&
     c.spend >= MIN_SPEND &&

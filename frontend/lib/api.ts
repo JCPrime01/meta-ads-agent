@@ -156,6 +156,7 @@ export interface Gestor {
   name: string;
   color: string;
   is_director: boolean;
+  agent_enabled: boolean;
   accounts: GestorAccount[];
 }
 
@@ -172,4 +173,9 @@ export async function addGestorAccount(gestorId: string, accountId: string, proj
 
 export async function removeGestorAccount(gestorId: string, accountId: string): Promise<void> {
   await req(`/gestores/${gestorId}/accounts/${accountId}`, { method: 'DELETE' });
+}
+
+export async function toggleGestorAgent(gestorId: string): Promise<boolean> {
+  const r = await req<{ ok: boolean; agent_enabled: boolean }>(`/gestores/${gestorId}/toggle-agent`, { method: 'POST' });
+  return r.agent_enabled;
 }

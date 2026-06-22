@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Gestor, GestorAccount, addGestorAccount, removeGestorAccount, ACCOUNT_NAMES } from '@/lib/api';
-import { Crown, Plus, X, ChevronRight } from 'lucide-react';
+import { Gestor, GestorAccount, addGestorAccount, removeGestorAccount, toggleGestorAgent, ACCOUNT_NAMES } from '@/lib/api';
+import { Crown, Plus, X, ChevronRight, Bot } from 'lucide-react';
 
 const COLOR_MAP: Record<string, { bg: string; text: string; border: string; avatar: string }> = {
   blue:   { bg: 'bg-blue-500/10',   text: 'text-blue-400',   border: 'border-blue-500/20',   avatar: 'bg-blue-500/20 text-blue-400' },
@@ -26,10 +26,22 @@ const PROJECTS = ['JOTAP', 'RAMON', 'ZECA'];
 export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, canEdit }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [togglingAgent, setTogglingAgent] = useState(false);
+  const [agentEnabled, setAgentEnabled] = useState(gestor.agent_enabled);
   const [projectForAccount, setProjectForAccount] = useState<Record<string, string>>({});
   const colors = COLOR_MAP[gestor.color] || COLOR_MAP.blue;
 
   const assignedIds = gestor.accounts.map(a => a.account_id);
+
+  async function handleToggleAgent(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (gestor.accounts.length === 0) return;
+    setTogglingAgent(true);
+    try {
+      const next = await toggleGestorAgent(gestor.id);
+      setAgentEnabled(next);
+    } finally { setTogglingAgent(false); }
+  }
 
   async function handleToggleAccount(accountId: string) {
     setSaving(true);
@@ -74,6 +86,22 @@ export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, ca
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Agent toggle — só para gestores com contas */}
+            {gestor.accounts.length > 0 && (
+              <button
+                onClick={handleToggleAgent}
+                disabled={togglingAgent}
+                title={agentEnabled ? 'Agente ativo — clique para desativar' : 'Agente inativo — clique para ativar'}
+                className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                  agentEnabled
+                    ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                    : 'bg-white/[0.03] border-white/10 text-white/30 hover:text-white/50'
+                } ${togglingAgent ? 'opacity-50' : ''}`}
+              >
+                <Bot size={10} className={togglingAgent ? 'animate-pulse' : ''} />
+                {agentEnabled ? 'ON' : 'OFF'}
+              </button>
+            )}
             {canEdit && (
               <button
                 onClick={e => { e.stopPropagation(); setEditing(!editing); }}

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getGestores, addGestorAccount, removeGestorAccount } from '../db/postgres';
+import { getGestores, addGestorAccount, removeGestorAccount, toggleGestorAgent } from '../db/postgres';
 
 const router = Router();
 
@@ -31,6 +31,16 @@ router.delete('/:id/accounts/:accountId', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[gestores] DELETE /accounts:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/:id/toggle-agent', async (req, res) => {
+  try {
+    const enabled = await toggleGestorAgent(req.params.id);
+    res.json({ ok: true, agent_enabled: enabled });
+  } catch (err) {
+    console.error('[gestores] POST /toggle-agent:', err);
     res.status(500).json({ error: 'Erro interno' });
   }
 });
