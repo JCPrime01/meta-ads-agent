@@ -21,7 +21,7 @@ export default function Home() {
   }, [router]);
   const [gestores, setGestores] = useState<Gestor[]>([]);
   const [selectedGestor, setSelectedGestor] = useState<string | null>(null);
-  const [tab, setTab] = useState<'gestores' | 'active' | 'paused' | 'agent'>('gestores');
+  const [tab, setTab] = useState<'gestores' | 'all' | 'active' | 'paused' | 'agent'>('gestores');
   const [refreshing, setRefreshing] = useState(false);
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
   const [agentEnabled, setAgentEnabled] = useState<boolean | null>(null);
@@ -78,12 +78,14 @@ export default function Home() {
 
   const directorGestor = gestores.find(g => g.is_director);
 
-  const filteredByGestor = selectedGestor
-    ? (() => {
-        const g = gestores.find(x => x.id === selectedGestor);
-        const accountIds = g?.accounts.map(a => a.account_id) ?? [];
-        return accountIds.length > 0 ? campaigns.filter(c => accountIds.includes(c.account_id)) : campaigns;
-      })()
+  // Contas disponíveis no filtro: só as do gestor selecionado (ou todas)
+  const gestorAccountIds = selectedGestor
+    ? (gestores.find(g => g.id === selectedGestor)?.accounts.map(a => a.account_id) ?? [])
+    : [];
+  const availableAccountIds = gestorAccountIds.length > 0 ? gestorAccountIds : Object.keys(ACCOUNT_NAMES);
+
+  const filteredByGestor = gestorAccountIds.length > 0
+    ? campaigns.filter(c => gestorAccountIds.includes(c.account_id))
     : campaigns;
 
   const filtered = accountFilter === ALL_ACCOUNTS
@@ -98,7 +100,7 @@ export default function Home() {
   const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
   const avgCtr = active.length > 0 ? active.reduce((s, c) => s + c.ctr, 0) / active.length : 0;
 
-  const accountIds = Object.keys(ACCOUNT_NAMES);
+  const accountIds = availableAccountIds;
 
   if (loading) {
     return (
@@ -108,7 +110,7 @@ export default function Home() {
     );
   }
 
-  const listCampaigns = (tab === 'active' ? active : paused).sort((a, b) => b.spend - a.spend);
+  const listCampaigns = (tab === 'all' ? filtered : tab === 'active' ? active : paused).sort((a, b) => b.spend - a.spend);
 
   return (
     <div className="w-full max-w-screen-xl mx-auto px-4 py-6 flex flex-col gap-5">
@@ -178,6 +180,7 @@ export default function Home() {
       <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit">
         {[
           { key: 'gestores', label: 'Gestores' },
+          { key: 'all', label: `Todas (${filtered.length})` },
           { key: 'active', label: `Ativas (${active.length})` },
           { key: 'paused', label: `Pausadas (${paused.length})` },
           { key: 'agent', label: `Agente (${actions.length})` },
@@ -216,8 +219,13 @@ export default function Home() {
                 gestor={g}
                 isSelected={selectedGestor === g.id}
                 onSelect={() => {
-                  setSelectedGestor(selectedGestor === g.id ? null : g.id);
-                  setTab('active');
+                  if (selectedGestor === g.id) {
+                    setSelectedGestor(null);
+                  } else {
+                    setSelectedGestor(g.id);
+                    setAccountFilter(ALL_ACCOUNTS);
+                    setTab('all');
+                  }
                 }}
                 onRefresh={() => getGestores().then(setGestores).catch(() => {})}
                 canEdit={!!directorGestor && g.id !== directorGestor.id}
@@ -232,10 +240,10 @@ export default function Home() {
       )}
 
       {/* Campaign Table */}
-      {(tab === 'active' || tab === 'paused') && (
+      {(tab === 'all' || tab === 'active' || tab === 'paused') && (
         listCampaigns.length === 0 ? (
           <div className="text-center text-white/30 text-sm py-16">
-            Nenhuma campanha {tab === 'active' ? 'ativa' : 'pausada'}{accountFilter !== ALL_ACCOUNTS ? ` na ${ACCOUNT_NAMES[accountFilter]}` : ''}.
+            Nenhuma campanha {tab === 'active' ? 'ativa' : tab === 'paused' ? 'pausada' : ''}{accountFilter !== ALL_ACCOUNTS ? ` na ${ACCOUNT_NAMES[accountFilter]}` : ''}.
           </div>
         ) : (
           <div className="rounded-2xl border border-white/10 overflow-x-auto">
