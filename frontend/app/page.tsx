@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts, isLoggedIn, logout } from '@/lib/api';
+import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts, isLoggedIn, logout, getGestores, Gestor } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import CampaignRow from '@/components/CampaignRow';
 import AgentLog from '@/components/AgentLog';
+import GestorCard from '@/components/GestorCard';
 import { RefreshCw, Bot, ChevronDown, LogOut } from 'lucide-react';
 
 const ALL_ACCOUNTS = 'all';
@@ -18,7 +19,9 @@ export default function Home() {
   useEffect(() => {
     if (!isLoggedIn()) router.replace('/login');
   }, [router]);
-  const [tab, setTab] = useState<'active' | 'paused' | 'agent'>('active');
+  const [gestores, setGestores] = useState<Gestor[]>([]);
+  const [selectedGestor, setSelectedGestor] = useState<string | null>(null);
+  const [tab, setTab] = useState<'gestores' | 'active' | 'paused' | 'agent'>('gestores');
   const [refreshing, setRefreshing] = useState(false);
   const [accountFilter, setAccountFilter] = useState(ALL_ACCOUNTS);
   const [agentEnabled, setAgentEnabled] = useState<boolean | null>(null);
@@ -45,6 +48,10 @@ export default function Home() {
     }).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    getGestores().then(setGestores).catch(() => {});
+  }, []);
+
   async function handleToggleAgent() {
     setTogglingAgent(true);
     try {
@@ -69,9 +76,19 @@ export default function Home() {
     load(true);
   }
 
+  const directorGestor = gestores.find(g => g.is_director);
+
+  const filteredByGestor = selectedGestor
+    ? (() => {
+        const g = gestores.find(x => x.id === selectedGestor);
+        const accountIds = g?.accounts.map(a => a.account_id) ?? [];
+        return accountIds.length > 0 ? campaigns.filter(c => accountIds.includes(c.account_id)) : campaigns;
+      })()
+    : campaigns;
+
   const filtered = accountFilter === ALL_ACCOUNTS
-    ? campaigns
-    : campaigns.filter(c => c.account_id === accountFilter);
+    ? filteredByGestor
+    : filteredByGestor.filter(c => c.account_id === accountFilter);
 
   const active = filtered.filter(c => c.status === 'ACTIVE');
   const paused = filtered.filter(c => c.status !== 'ACTIVE');
@@ -160,6 +177,7 @@ export default function Home() {
       {/* Tabs */}
       <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit">
         {[
+          { key: 'gestores', label: 'Gestores' },
           { key: 'active', label: `Ativas (${active.length})` },
           { key: 'paused', label: `Pausadas (${paused.length})` },
           { key: 'agent', label: `Agente (${actions.length})` },
@@ -175,6 +193,43 @@ export default function Home() {
           </button>
         ))}
       </div>
+
+      {/* Gestores Tab */}
+      {tab === 'gestores' && (
+        <div className="flex flex-col gap-4">
+          {/* Selected gestor indicator */}
+          {selectedGestor && (
+            <div className="flex items-center gap-2 text-xs text-white/40">
+              <span>Filtrando campanhas por:</span>
+              <span className="text-white/70 font-semibold">{gestores.find(g => g.id === selectedGestor)?.name}</span>
+              <button onClick={() => setSelectedGestor(null)} className="text-white/30 hover:text-white/60 underline">
+                Limpar filtro
+              </button>
+            </div>
+          )}
+
+          {/* Gestor cards grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {gestores.map(g => (
+              <GestorCard
+                key={g.id}
+                gestor={g}
+                isSelected={selectedGestor === g.id}
+                onSelect={() => {
+                  setSelectedGestor(selectedGestor === g.id ? null : g.id);
+                  setTab('active');
+                }}
+                onRefresh={() => getGestores().then(setGestores).catch(() => {})}
+                canEdit={!!directorGestor && g.id !== directorGestor.id}
+              />
+            ))}
+          </div>
+
+          {gestores.length === 0 && (
+            <div className="text-center text-white/20 text-sm py-12">Carregando gestores...</div>
+          )}
+        </div>
+      )}
 
       {/* Campaign Table */}
       {(tab === 'active' || tab === 'paused') && (

@@ -145,3 +145,31 @@ export async function pauseAdset(adsetId: string): Promise<void> {
 export async function activateAdset(adsetId: string): Promise<void> {
   await req(`/campaigns/adsets/${adsetId}/activate`, { method: 'POST' });
 }
+
+export interface GestorAccount {
+  account_id: string;
+  project_name: string;
+}
+
+export interface Gestor {
+  id: string;
+  name: string;
+  color: string;
+  is_director: boolean;
+  accounts: GestorAccount[];
+}
+
+export async function getGestores(): Promise<Gestor[]> {
+  return req<Gestor[]>('/gestores');
+}
+
+export async function addGestorAccount(gestorId: string, accountId: string, projectName: string): Promise<void> {
+  await req(`/gestores/${gestorId}/accounts`, {
+    method: 'POST',
+    body: JSON.stringify({ account_id: accountId, project_name: projectName }),
+  });
+}
+
+export async function removeGestorAccount(gestorId: string, accountId: string): Promise<void> {
+  await req(`/gestores/${gestorId}/accounts/${accountId}`, { method: 'DELETE' });
+}

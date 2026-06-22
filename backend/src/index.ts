@@ -9,6 +9,7 @@ import authRouter from './routes/auth';
 import campaignsRouter from './routes/campaigns';
 import insightsRouter from './routes/insights';
 import agentRouter from './routes/agent';
+import gestoresRouter from './routes/gestores';
 import { requireAuth, getJwtSecret } from './middleware/auth';
 
 // Fail-fast se JWT_SECRET inválido
@@ -48,6 +49,7 @@ app.use(requireAuth);
 app.use('/campaigns', campaignsRouter);
 app.use('/insights', insightsRouter);
 app.use('/agent', agentRouter);
+app.use('/gestores', gestoresRouter);
 
 async function start() {
   try {

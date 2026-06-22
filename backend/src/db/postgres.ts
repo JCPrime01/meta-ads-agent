@@ -1,6 +1,33 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function seedGestores(client: PoolClient) {
+  const { rowCount } = await client.query('SELECT 1 FROM gestores LIMIT 1');
+  if (rowCount && rowCount > 0) return; // already seeded
+
+  const gestores = [
+    { name: 'ADRIANO', color: 'blue', is_director: false, accounts: [{ id: 'act_1095859619406442', project: 'JOTAP' }] },
+    { name: 'HUEVERTON', color: 'purple', is_director: false, accounts: [{ id: 'act_1628949641648813', project: 'JOTAP' }, { id: 'act_1520081442881968', project: 'JOTAP' }] },
+    { name: 'IVAN', color: 'green', is_director: true, accounts: [] },
+    { name: 'DIOGO', color: 'orange', is_director: false, accounts: [{ id: 'act_1430948701654012', project: 'JOTAP' }] },
+    { name: 'GABRIEL', color: 'pink', is_director: false, accounts: [{ id: 'act_1322469786598233', project: 'JOTAP' }] },
+  ];
+
+  for (const g of gestores) {
+    const { rows } = await client.query(
+      `INSERT INTO gestores (name, color, is_director) VALUES ($1, $2, $3) RETURNING id`,
+      [g.name, g.color, g.is_director]
+    );
+    const gestorId = rows[0].id;
+    for (const acc of g.accounts) {
+      await client.query(
+        `INSERT INTO gestor_accounts (gestor_id, account_id, project_name) VALUES ($1, $2, $3)`,
+        [gestorId, acc.id, acc.project]
+      );
+    }
+  }
+}
 
 export async function migrate(): Promise<void> {
   await pool.query(`
@@ -48,6 +75,28 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     UPDATE agent_actions SET source = 'AGENT' WHERE source IS NULL;
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gestores (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      is_director BOOLEAN DEFAULT FALSE,
+      color TEXT DEFAULT 'blue',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS gestor_accounts (
+      gestor_id UUID REFERENCES gestores(id) ON DELETE CASCADE,
+      account_id TEXT NOT NULL,
+      project_name TEXT NOT NULL DEFAULT 'JOTAP',
+      PRIMARY KEY (gestor_id, account_id)
+    );
+  `);
+  const client = await pool.connect();
+  try {
+    await seedGestores(client);
+  } finally {
+    client.release();
+  }
 }
 
 export async function logAction(
@@ -155,6 +204,35 @@ export async function getSnapshots(days = 7) {
     [days]
   );
   return r.rows;
+}
+
+export async function getGestores() {
+  const { rows } = await pool.query(`
+    SELECT g.id, g.name, g.color, g.is_director,
+      COALESCE(
+        json_agg(json_build_object('account_id', ga.account_id, 'project_name', ga.project_name))
+        FILTER (WHERE ga.account_id IS NOT NULL), '[]'
+      ) as accounts
+    FROM gestores g
+    LEFT JOIN gestor_accounts ga ON ga.gestor_id = g.id
+    GROUP BY g.id, g.name, g.color, g.is_director
+    ORDER BY g.name
+  `);
+  return rows;
+}
+
+export async function addGestorAccount(gestorId: string, accountId: string, projectName: string) {
+  await pool.query(
+    `INSERT INTO gestor_accounts (gestor_id, account_id, project_name) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [gestorId, accountId, projectName]
+  );
+}
+
+export async function removeGestorAccount(gestorId: string, accountId: string) {
+  await pool.query(
+    `DELETE FROM gestor_accounts WHERE gestor_id = $1 AND account_id = $2`,
+    [gestorId, accountId]
+  );
 }
 
 export default pool;

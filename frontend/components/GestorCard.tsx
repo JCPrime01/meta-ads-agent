@@ -1,0 +1,135 @@
+'use client';
+import { useState } from 'react';
+import { Gestor, GestorAccount, addGestorAccount, removeGestorAccount, ACCOUNT_NAMES } from '@/lib/api';
+import { Crown, Plus, X, ChevronRight } from 'lucide-react';
+
+const COLOR_MAP: Record<string, { bg: string; text: string; border: string; avatar: string }> = {
+  blue:   { bg: 'bg-blue-500/10',   text: 'text-blue-400',   border: 'border-blue-500/20',   avatar: 'bg-blue-500/20 text-blue-400' },
+  purple: { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20', avatar: 'bg-purple-500/20 text-purple-400' },
+  green:  { bg: 'bg-green-500/10',  text: 'text-green-400',  border: 'border-green-500/20',  avatar: 'bg-green-500/20 text-green-400' },
+  orange: { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20', avatar: 'bg-orange-500/20 text-orange-400' },
+  pink:   { bg: 'bg-pink-500/10',   text: 'text-pink-400',   border: 'border-pink-500/20',   avatar: 'bg-pink-500/20 text-pink-400' },
+};
+
+const ALL_ACCOUNT_IDS = Object.keys(ACCOUNT_NAMES);
+
+interface Props {
+  gestor: Gestor;
+  isSelected: boolean;
+  onSelect: () => void;
+  onRefresh: () => void;
+  canEdit: boolean; // only true when IVAN (director) is viewing
+}
+
+export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, canEdit }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const colors = COLOR_MAP[gestor.color] || COLOR_MAP.blue;
+
+  const assignedIds = gestor.accounts.map(a => a.account_id);
+
+  async function handleToggleAccount(accountId: string) {
+    setSaving(true);
+    try {
+      if (assignedIds.includes(accountId)) {
+        await removeGestorAccount(gestor.id, accountId);
+      } else {
+        await addGestorAccount(gestor.id, accountId, 'JOTAP');
+      }
+      onRefresh();
+    } finally { setSaving(false); }
+  }
+
+  // Group accounts by project
+  const byProject: Record<string, GestorAccount[]> = {};
+  for (const acc of gestor.accounts) {
+    if (!byProject[acc.project_name]) byProject[acc.project_name] = [];
+    byProject[acc.project_name].push(acc);
+  }
+
+  return (
+    <div
+      className={`rounded-2xl border transition-all ${colors.bg} ${colors.border} ${isSelected ? 'ring-2 ring-offset-1 ring-offset-[#0a0a0a] ' + colors.text.replace('text-', 'ring-') : ''} ${!editing ? 'cursor-pointer hover:brightness-110' : ''}`}
+      onClick={!editing ? onSelect : undefined}
+    >
+      <div className="p-4 flex flex-col gap-3">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm ${colors.avatar}`}>
+              {gestor.name[0]}
+            </div>
+            <div>
+              <div className={`text-sm font-bold ${colors.text}`}>{gestor.name}</div>
+              {gestor.is_director && (
+                <div className="flex items-center gap-1 text-[10px] text-white/30">
+                  <Crown size={9} className="text-yellow-400" />
+                  <span className="text-yellow-400/70">Diretor</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {canEdit && (
+              <button
+                onClick={e => { e.stopPropagation(); setEditing(!editing); }}
+                className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${editing ? 'bg-white/10 border-white/20 text-white/70' : 'border-white/10 text-white/30 hover:text-white/60 hover:bg-white/5'}`}
+              >
+                {editing ? 'Fechar' : 'Editar'}
+              </button>
+            )}
+            {!editing && (
+              <ChevronRight size={14} className={`${colors.text} opacity-50`} />
+            )}
+          </div>
+        </div>
+
+        {/* Account chips (view mode) */}
+        {!editing && (
+          <>
+            {gestor.accounts.length === 0 ? (
+              <p className="text-[11px] text-white/25 italic">Sem contas atribuídas</p>
+            ) : (
+              Object.entries(byProject).map(([project, accs]) => (
+                <div key={project}>
+                  <div className="text-[9px] text-white/25 uppercase tracking-wider mb-1.5">{project}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {accs.map(a => (
+                      <span key={a.account_id} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
+                        {ACCOUNT_NAMES[a.account_id] ?? a.account_id}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </>
+        )}
+
+        {/* Edit mode */}
+        {editing && (
+          <div className="flex flex-col gap-2">
+            <div className="text-[10px] text-white/40 uppercase tracking-wider">Contas atribuídas</div>
+            <div className="flex flex-col gap-1.5">
+              {ALL_ACCOUNT_IDS.map(accId => {
+                const assigned = assignedIds.includes(accId);
+                return (
+                  <div key={accId} className="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <span className="text-xs text-white/60">{ACCOUNT_NAMES[accId] ?? accId}</span>
+                    <button
+                      onClick={() => handleToggleAccount(accId)}
+                      disabled={saving}
+                      className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors ${assigned ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'}`}
+                    >
+                      {assigned ? <><X size={10}/> Remover</> : <><Plus size={10}/> Adicionar</>}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
