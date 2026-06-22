@@ -83,6 +83,15 @@ export interface AdInsight {
 }
 
 export async function getCampaignsWithInsights(accountId: string): Promise<CampaignInsight[]> {
+  // Busca TODAS as campanhas da conta (ativas, pausadas, agendadas)
+  const campaignsRes = await metaGet(`/${accountId}/campaigns`, {
+    fields: 'id,name,status,effective_status,daily_budget,lifetime_budget',
+    limit: '200',
+  });
+  const allCampaigns: Record<string, string>[] = campaignsRes.data || [];
+  if (allCampaigns.length === 0) return [];
+
+  // Busca insights de hoje separadamente
   const insightsRes = await metaGet(`/${accountId}/insights`, {
     fields: 'campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,actions,frequency,reach',
     date_preset: 'today',
@@ -90,21 +99,12 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
     limit: '200',
   });
 
-  const insights: Record<string, unknown>[] = insightsRes.data || [];
-  if (insights.length === 0) return [];
-
   const insightsMap: Record<string, Record<string, unknown>> = {};
-  for (const ins of insights) insightsMap[ins.campaign_id as string] = ins;
+  for (const ins of (insightsRes.data || []) as Record<string, unknown>[]) {
+    insightsMap[ins.campaign_id as string] = ins;
+  }
 
-  const ids = insights.map(i => i.campaign_id as string).join(',');
-  const batchRes = await metaGet('', {
-    ids,
-    fields: 'id,name,status,effective_status,daily_budget,lifetime_budget',
-  });
-
-  const campaigns = Object.values(batchRes as Record<string, Record<string, string>>);
-
-  return campaigns.map(c => {
+  return allCampaigns.map(c => {
     const ins = insightsMap[c.id] || {};
     const m = extractLeadsAndCpl(ins);
     return {
