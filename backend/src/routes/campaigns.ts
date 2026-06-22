@@ -75,4 +75,28 @@ router.post('/:id/budget', async (req, res) => {
   }
 });
 
+router.post('/adsets/:id/pause', async (req, res) => {
+  if (!/^\d+$/.test(req.params.id)) { res.status(400).json({ error: 'ID inválido' }); return; }
+  try {
+    const { pauseAdset } = require('../meta/campaigns');
+    await pauseAdset(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[campaigns] POST /adsets/pause:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/adsets/:id/activate', async (req, res) => {
+  if (!/^\d+$/.test(req.params.id)) { res.status(400).json({ error: 'ID inválido' }); return; }
+  try {
+    const { activateAdset } = require('../meta/campaigns');
+    await activateAdset(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[campaigns] POST /adsets/activate:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 export default router;

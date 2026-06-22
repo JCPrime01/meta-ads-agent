@@ -137,3 +137,11 @@ export interface AdsetInsight {
 export async function getAdsets(campaignId: string): Promise<AdsetInsight[]> {
   return req<AdsetInsight[]>(`/insights/adsets/${campaignId}`);
 }
+
+export async function pauseAdset(adsetId: string): Promise<void> {
+  await req(`/campaigns/adsets/${adsetId}/pause`, { method: 'POST' });
+}
+
+export async function activateAdset(adsetId: string): Promise<void> {
+  await req(`/campaigns/adsets/${adsetId}/activate`, { method: 'POST' });
+}
