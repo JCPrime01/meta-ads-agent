@@ -216,7 +216,7 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
                           {adsetActive ? 'Ativo' : 'Pausado'}
                         </span>
                       </div>
-                      <div className="hidden sm:flex gap-4 shrink-0 text-right">
+                      <div className="flex gap-4 shrink-0 text-right">
                         <div>
                           <div className="text-[9px] text-white/20 uppercase">Leads</div>
                           <div className={`text-xs font-semibold tabular-nums ${a.leads > 0 ? 'text-white/80' : 'text-white/25'}`}>{a.leads || '—'}</div>
