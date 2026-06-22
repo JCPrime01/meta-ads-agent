@@ -118,6 +118,40 @@ export async function getCampaignsWithInsights(accountId: string): Promise<Campa
   });
 }
 
+// Busca TODOS os adsets de uma campanha + merge com insights de hoje
+export async function getAdsetsByCampaignId(campaignId: string): Promise<AdsetInsight[]> {
+  const adsetsRes = await metaGet(`/${campaignId}/adsets`, {
+    fields: 'id,name,status,effective_status,daily_budget',
+    limit: '200',
+  });
+  const allAdsets: Record<string, string>[] = adsetsRes.data || [];
+  if (allAdsets.length === 0) return [];
+
+  const insightsRes = await metaGet(`/${campaignId}/insights`, {
+    fields: 'adset_id,adset_name,spend,impressions,clicks,ctr,cpc,actions',
+    date_preset: 'today',
+    level: 'adset',
+    limit: '200',
+  });
+
+  const insightsMap: Record<string, Record<string, unknown>> = {};
+  for (const ins of (insightsRes.data || []) as Record<string, unknown>[]) {
+    insightsMap[ins.adset_id as string] = ins;
+  }
+
+  return allAdsets.map(a => {
+    const ins = insightsMap[a.id] || {};
+    const m = extractLeadsAndCpl(ins);
+    return {
+      adset_id: a.id,
+      adset_name: a.name.slice(0, 60),
+      campaign_id: campaignId,
+      status: a.effective_status || a.status,
+      ...m,
+    };
+  });
+}
+
 export async function getAdsetInsights(accountId: string): Promise<AdsetInsight[]> {
   const insightsRes = await metaGet(`/${accountId}/insights`, {
     fields: 'adset_id,adset_name,campaign_id,spend,impressions,clicks,ctr,cpc,actions',

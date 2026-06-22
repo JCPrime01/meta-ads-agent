@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getRecentActions, getSnapshots } from '../db/postgres';
 import { diagnose } from '../agent/diagnostics';
-import { getAllAccountsInsights } from '../meta/insights';
+import { getAllAccountsInsights, getAdsetsByCampaignId } from '../meta/insights';
 
 const router = Router();
 
@@ -53,10 +53,8 @@ router.get('/adsets/:campaignId', async (req, res) => {
     return;
   }
   try {
-    const { getAllAccountsHierarchical } = require('../meta/insights');
-    const { adsets } = await getAllAccountsHierarchical([req.params.campaignId]);
-    const filtered = (adsets as Array<{ campaign_id: string }>).filter(a => a.campaign_id === req.params.campaignId);
-    res.json(filtered);
+    const adsets = await getAdsetsByCampaignId(req.params.campaignId);
+    res.json(adsets);
   } catch (err) {
     console.error('[insights] GET /adsets:', err);
     res.status(500).json({ error: 'Erro interno' });
