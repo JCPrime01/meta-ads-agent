@@ -120,3 +120,20 @@ export async function updateAgentAccounts(accounts: string[]): Promise<{ enabled
     body: JSON.stringify({ accounts }),
   });
 }
+
+export interface AdsetInsight {
+  adset_id: string;
+  adset_name: string;
+  campaign_id: string;
+  status: string;
+  spend: number;
+  leads: number;
+  cpl: number;
+  ctr: number;
+  cpc: number;
+  impressions: number;
+}
+
+export async function getAdsets(campaignId: string): Promise<AdsetInsight[]> {
+  return req<AdsetInsight[]>(`/insights/adsets/${campaignId}`);
+}
