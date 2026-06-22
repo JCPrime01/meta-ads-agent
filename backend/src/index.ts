@@ -18,6 +18,7 @@ getJwtSecret();
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+app.set('trust proxy', 1); // Railway / proxies set X-Forwarded-For
 app.use(helmet());
 
 const allowedOrigins = (process.env.FRONTEND_URL || '')
