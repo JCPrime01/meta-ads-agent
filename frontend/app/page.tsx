@@ -388,21 +388,16 @@ export default function Home() {
       {tab === 'agent' && (
         <div className="flex flex-col gap-4">
 
-          {/* Status do agente por gestor */}
+          {/* Status do agente por conta */}
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-3">
             <div className="flex items-center gap-2 text-xs text-white/50 font-semibold uppercase tracking-wider">
               <Bot size={12} />
-              <span>Agente por gestor — ligue/desligue individualmente</span>
+              <span>Agente por conta — selecione quais contas o agente gerencia</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
               {gestores.filter(g => g.accounts.length > 0).map(g => (
-                <div key={g.id} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2">
-                  <div>
-                    <div className="text-xs font-semibold text-white/70">{g.name}</div>
-                    <div className="text-[10px] text-white/30">
-                      {g.accounts.map(a => ACCOUNT_NAMES[a.account_id] ?? a.account_id).join(' · ')}
-                    </div>
-                  </div>
+                <div key={g.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 flex flex-col gap-2">
+                  <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{g.name}</div>
                   <GestorCard
                     gestor={g}
                     isSelected={false}

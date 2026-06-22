@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getGestores, addGestorAccount, removeGestorAccount, toggleGestorAgent } from '../db/postgres';
+import { getGestores, addGestorAccount, removeGestorAccount, toggleGestorAgent, toggleGestorAccountAgent } from '../db/postgres';
 
 const router = Router();
 
@@ -41,6 +41,16 @@ router.post('/:id/toggle-agent', async (req, res) => {
     res.json({ ok: true, agent_enabled: enabled });
   } catch (err) {
     console.error('[gestores] POST /toggle-agent:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+router.post('/:gestorId/accounts/:accountId/toggle-agent', async (req, res) => {
+  try {
+    const enabled = await toggleGestorAccountAgent(req.params.gestorId, req.params.accountId);
+    res.json({ ok: true, agent_enabled: enabled });
+  } catch (err) {
+    console.error('[gestores] POST /accounts/toggle-agent:', err);
     res.status(500).json({ error: 'Erro interno' });
   }
 });

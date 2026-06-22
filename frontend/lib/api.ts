@@ -159,6 +159,7 @@ export async function activateAdset(adsetId: string): Promise<void> {
 export interface GestorAccount {
   account_id: string;
   project_name: string;
+  agent_enabled: boolean;
 }
 
 export interface Gestor {
@@ -187,5 +188,10 @@ export async function removeGestorAccount(gestorId: string, accountId: string): 
 
 export async function toggleGestorAgent(gestorId: string): Promise<boolean> {
   const r = await req<{ ok: boolean; agent_enabled: boolean }>(`/gestores/${gestorId}/toggle-agent`, { method: 'POST' });
+  return r.agent_enabled;
+}
+
+export async function toggleGestorAccountAgent(gestorId: string, accountId: string): Promise<boolean> {
+  const r = await req<{ ok: boolean; agent_enabled: boolean }>(`/gestores/${gestorId}/accounts/${accountId}/toggle-agent`, { method: 'POST' });
   return r.agent_enabled;
 }

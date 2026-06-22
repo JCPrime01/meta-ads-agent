@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Gestor, GestorAccount, addGestorAccount, removeGestorAccount, toggleGestorAgent, ACCOUNT_NAMES } from '@/lib/api';
+import { Gestor, GestorAccount, addGestorAccount, removeGestorAccount, toggleGestorAgent, toggleGestorAccountAgent, ACCOUNT_NAMES } from '@/lib/api';
 import { Crown, Plus, X, ChevronRight, Bot } from 'lucide-react';
 
 const COLOR_MAP: Record<string, { bg: string; text: string; border: string; avatar: string }> = {
@@ -30,9 +30,16 @@ export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, ca
   const [togglingAgent, setTogglingAgent] = useState(false);
   const [agentEnabled, setAgentEnabled] = useState(!!gestor.agent_enabled);
   const [projectForAccount, setProjectForAccount] = useState<Record<string, string>>({});
+  const [accountAgentStates, setAccountAgentStates] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(gestor.accounts.map(a => [a.account_id, !!a.agent_enabled]))
+  );
+  const [togglingAccount, setTogglingAccount] = useState<string | null>(null);
 
   // Sync when parent re-fetches gestor data
   useEffect(() => { setAgentEnabled(!!gestor.agent_enabled); }, [gestor.agent_enabled]);
+  useEffect(() => {
+    setAccountAgentStates(Object.fromEntries(gestor.accounts.map(a => [a.account_id, !!a.agent_enabled])));
+  }, [gestor.accounts]);
 
   const colors = COLOR_MAP[gestor.color] || COLOR_MAP.blue;
   const assignedIds = gestor.accounts.map(a => a.account_id);
@@ -71,21 +78,42 @@ export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, ca
     byProject[acc.project_name].push(acc);
   }
 
+  async function handleToggleAccountAgent(accountId: string) {
+    const prev = accountAgentStates[accountId] ?? false;
+    setAccountAgentStates(s => ({ ...s, [accountId]: !prev }));
+    setTogglingAccount(accountId);
+    try {
+      const next = await toggleGestorAccountAgent(gestor.id, accountId);
+      setAccountAgentStates(s => ({ ...s, [accountId]: next }));
+    } catch {
+      setAccountAgentStates(s => ({ ...s, [accountId]: prev }));
+    } finally { setTogglingAccount(null); }
+  }
+
   if (agentOnly) {
     return (
-      <button
-        onClick={handleToggleAgent}
-        disabled={togglingAgent || gestor.accounts.length === 0}
-        title={agentEnabled ? 'Agente ativo — clique para desativar' : 'Agente inativo — clique para ativar'}
-        className={`flex items-center gap-1 text-[10px] px-2.5 py-1.5 rounded-lg border transition-colors ${
-          agentEnabled
-            ? 'bg-green-500/15 border-green-500/30 text-green-400'
-            : 'bg-white/[0.03] border-white/10 text-white/30 hover:text-white/50'
-        } ${togglingAgent ? 'opacity-50' : ''}`}
-      >
-        <Bot size={11} className={togglingAgent ? 'animate-pulse' : ''} />
-        {agentEnabled ? 'ON' : 'OFF'}
-      </button>
+      <div className="flex flex-wrap gap-1.5">
+        {gestor.accounts.map(acc => {
+          const on = accountAgentStates[acc.account_id] ?? false;
+          const toggling = togglingAccount === acc.account_id;
+          return (
+            <button
+              key={acc.account_id}
+              onClick={() => handleToggleAccountAgent(acc.account_id)}
+              disabled={toggling}
+              title={`${ACCOUNT_NAMES[acc.account_id] ?? acc.account_id} — ${on ? 'Ativo' : 'Inativo'}`}
+              className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                on
+                  ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                  : 'bg-white/[0.03] border-white/10 text-white/30 hover:text-white/50'
+              } ${toggling ? 'opacity-50' : ''}`}
+            >
+              <Bot size={9} className={toggling ? 'animate-pulse' : ''} />
+              <span>{ACCOUNT_NAMES[acc.account_id] ?? acc.account_id}</span>
+            </button>
+          );
+        })}
+      </div>
     );
   }
 
