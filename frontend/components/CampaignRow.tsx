@@ -125,18 +125,25 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
             title={isActive ? 'Pausar campanha' : 'Ativar campanha'}
           />
         </td>
-        {/* Campaign name + hover actions */}
+        {/* Campaign name — clica para expandir conjuntos */}
         <td className="py-3 px-2 max-w-[260px]">
           <div className="flex flex-col gap-0.5">
-            <span className="text-sm text-white/90 truncate block leading-tight" title={c.campaign_name}>{name}</span>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-              <button onClick={handleToggleAdsets} disabled={loadingAdsets}
-                className="text-[10px] text-white/40 hover:text-blue-400 transition-colors px-1.5 py-0.5 rounded bg-white/5 hover:bg-blue-500/10 flex items-center gap-1">
-                {showAdsets ? <ChevronUp size={10}/> : <ChevronDown size={10}/>} Conjuntos
-              </button>
+            <button
+              onClick={handleToggleAdsets}
+              disabled={loadingAdsets}
+              className="text-sm text-white/90 truncate block leading-tight text-left hover:text-white transition-colors cursor-pointer"
+              title={c.campaign_name}
+            >
+              {name}
+            </button>
+            <div className="flex items-center gap-1">
+              <span className={`text-[10px] text-white/25 flex items-center gap-0.5 transition-colors ${showAdsets ? 'text-blue-400/60' : ''}`}>
+                {showAdsets ? <ChevronUp size={9}/> : <ChevronDown size={9}/>}
+                {loadingAdsets ? 'Carregando...' : 'Conjuntos'}
+              </span>
               <button onClick={handleDiagnose} disabled={loading}
-                className="text-[10px] text-white/40 hover:text-yellow-400 transition-colors px-1.5 py-0.5 rounded bg-white/5 hover:bg-yellow-500/10 flex items-center gap-1">
-                <Zap size={10}/> IA
+                className="text-[10px] text-white/25 hover:text-yellow-400 transition-colors px-1 py-0.5 rounded hover:bg-yellow-500/10 flex items-center gap-0.5">
+                <Zap size={9}/> IA
               </button>
             </div>
           </div>
