@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getAllAccountsInsights, CampaignInsight } from '../meta/insights';
-import { pauseCampaign, activateCampaign, updateDailyBudget } from '../meta/campaigns';
+import { pauseCampaign, activateCampaign, updateDailyBudget, pauseAdset, activateAdset } from '../meta/campaigns';
 import { logAction } from '../db/postgres';
 
 const router = Router();
@@ -78,7 +78,6 @@ router.post('/:id/budget', async (req, res) => {
 router.post('/adsets/:id/pause', async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) { res.status(400).json({ error: 'ID inválido' }); return; }
   try {
-    const { pauseAdset } = require('../meta/campaigns');
     await pauseAdset(req.params.id);
     res.json({ ok: true });
   } catch (err) {
@@ -90,7 +89,6 @@ router.post('/adsets/:id/pause', async (req, res) => {
 router.post('/adsets/:id/activate', async (req, res) => {
   if (!/^\d+$/.test(req.params.id)) { res.status(400).json({ error: 'ID inválido' }); return; }
   try {
-    const { activateAdset } = require('../meta/campaigns');
     await activateAdset(req.params.id);
     res.json({ ok: true });
   } catch (err) {
