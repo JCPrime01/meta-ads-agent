@@ -182,10 +182,10 @@ export default function Home() {
       <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit">
         {[
           { key: 'gestores', label: 'Gestores' },
-          { key: 'all', label: `Todas (${filtered.length})` },
+          { key: 'all', label: 'Todas' },
           { key: 'active', label: `Ativas (${active.length})` },
           { key: 'paused', label: `Pausadas (${paused.length})` },
-          { key: 'agent', label: `Agente (${actions.length})` },
+          { key: 'agent', label: 'Agente' },
         ].map(t => (
           <button
             key={t.key}

@@ -21,9 +21,12 @@ interface Props {
   canEdit: boolean; // only true when IVAN (director) is viewing
 }
 
+const PROJECTS = ['JOTAP', 'RAMON', 'ZECA'];
+
 export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, canEdit }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [projectForAccount, setProjectForAccount] = useState<Record<string, string>>({});
   const colors = COLOR_MAP[gestor.color] || COLOR_MAP.blue;
 
   const assignedIds = gestor.accounts.map(a => a.account_id);
@@ -34,7 +37,8 @@ export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, ca
       if (assignedIds.includes(accountId)) {
         await removeGestorAccount(gestor.id, accountId);
       } else {
-        await addGestorAccount(gestor.id, accountId, 'JOTAP');
+        const project = projectForAccount[accountId] || 'JOTAP';
+        await addGestorAccount(gestor.id, accountId, project);
       }
       onRefresh();
     } finally { setSaving(false); }
@@ -113,16 +117,34 @@ export default function GestorCard({ gestor, isSelected, onSelect, onRefresh, ca
             <div className="flex flex-col gap-1.5">
               {ALL_ACCOUNT_IDS.map(accId => {
                 const assigned = assignedIds.includes(accId);
+                const assignedAccount = gestor.accounts.find(a => a.account_id === accId);
                 return (
                   <div key={accId} className="flex items-center justify-between py-1 px-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <span className="text-xs text-white/60">{ACCOUNT_NAMES[accId] ?? accId}</span>
-                    <button
-                      onClick={() => handleToggleAccount(accId)}
-                      disabled={saving}
-                      className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors ${assigned ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'}`}
-                    >
-                      {assigned ? <><X size={10}/> Remover</> : <><Plus size={10}/> Adicionar</>}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-white/60">{ACCOUNT_NAMES[accId] ?? accId}</span>
+                      {assigned && assignedAccount && (
+                        <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">{assignedAccount.project_name}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {!assigned && (
+                        <select
+                          value={projectForAccount[accId] || 'JOTAP'}
+                          onChange={e => setProjectForAccount(prev => ({ ...prev, [accId]: e.target.value }))}
+                          onClick={e => e.stopPropagation()}
+                          className="appearance-none bg-white/5 border border-white/10 text-white/50 text-[10px] rounded px-1.5 py-0.5 focus:outline-none"
+                        >
+                          {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      )}
+                      <button
+                        onClick={() => handleToggleAccount(accId)}
+                        disabled={saving}
+                        className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors ${assigned ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'}`}
+                      >
+                        {assigned ? <><X size={10}/> Remover</> : <><Plus size={10}/> Adicionar</>}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
