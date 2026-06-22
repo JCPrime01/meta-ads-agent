@@ -94,13 +94,12 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE gestores ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT false;
   `);
-  // Assign RAMON accounts to IVAN and ADRIANO
+  // Assign RAMON accounts to IVAN and ADRIANO (BB 01 não incluso — pertence ao ZECA)
   await pool.query(`
     INSERT INTO gestor_accounts (gestor_id, account_id, project_name)
     SELECT g.id, a.account_id, 'RAMON'
     FROM gestores g
     CROSS JOIN (VALUES
-      ('act_809590885250558'),
       ('act_1677889643448352'),
       ('act_1068494141940786'),
       ('act_1259981386320730'),
@@ -109,17 +108,24 @@ export async function migrate(): Promise<void> {
     WHERE g.name IN ('IVAN', 'ADRIANO')
     ON CONFLICT DO NOTHING;
   `);
-  // Assign ZECA accounts to DIOGO and HUEVERTON
+  // Assign ZECA accounts to DIOGO and HUEVERTON (inclui BB 01)
   await pool.query(`
     INSERT INTO gestor_accounts (gestor_id, account_id, project_name)
     SELECT g.id, a.account_id, 'ZECA'
     FROM gestores g
     CROSS JOIN (VALUES
+      ('act_809590885250558'),
       ('act_932647832992759'),
       ('act_1430896401540194')
     ) AS a(account_id)
     WHERE g.name IN ('DIOGO', 'HUEVERTON')
     ON CONFLICT DO NOTHING;
+  `);
+  // Corretiva: remove BB 01 de IVAN e ADRIANO se existir
+  await pool.query(`
+    DELETE FROM gestor_accounts
+    WHERE account_id = 'act_809590885250558'
+      AND gestor_id IN (SELECT id FROM gestores WHERE name IN ('IVAN', 'ADRIANO'));
   `);
   const client = await pool.connect();
   try {
