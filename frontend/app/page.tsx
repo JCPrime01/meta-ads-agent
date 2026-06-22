@@ -191,7 +191,7 @@ export default function Home() {
                   {['', 'Campanha', 'Veiculação', 'Leads', 'CPL', 'Orçamento', 'Gasto', 'Impressões', 'CTR'].map((h, i) => (
                     <th
                       key={i}
-                      className={`py-2.5 px-3 text-[10px] font-semibold text-white/30 uppercase tracking-wider ${i === 0 ? 'pl-4 w-8' : ''} ${i >= 3 ? 'text-right' : 'text-left'} ${i === 8 ? 'pr-4' : ''}`}
+                      className={`py-2.5 px-3 text-[10px] font-semibold text-white/30 uppercase tracking-wider ${i === 0 ? 'pl-4 w-12' : ''} ${i >= 3 ? 'text-right' : 'text-left'} ${i === 8 ? 'pr-4' : ''}`}
                     >
                       {h}
                     </th>

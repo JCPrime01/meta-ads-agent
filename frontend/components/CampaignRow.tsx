@@ -99,15 +99,15 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
     <>
       {/* ── DESKTOP ROW ── */}
       <tr className="hidden sm:table-row border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group">
-        {/* Status dot — clica para pausar/ativar */}
-        <td className="py-3 pl-4 pr-2 w-8">
+        {/* Toggle switch */}
+        <td className="py-3 pl-4 pr-2 w-12">
           <button
             onClick={toggleStatus}
             disabled={loading}
             title={c.status === 'ACTIVE' ? 'Pausar campanha' : 'Ativar campanha'}
-            className="group/dot flex items-center justify-center w-6 h-6 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${c.status === 'ACTIVE' ? 'bg-blue-500' : 'bg-white/20'}`}
           >
-            <div className={`w-2.5 h-2.5 rounded-full transition-transform group-hover/dot:scale-125 ${loading ? 'animate-pulse' : ''} ${dotClass}`} />
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${c.status === 'ACTIVE' ? 'translate-x-[18px]' : 'translate-x-[3px]'} ${loading ? 'animate-pulse' : ''}`} />
           </button>
         </td>
         {/* Campaign name + hover actions */}
