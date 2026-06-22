@@ -6,6 +6,8 @@ import { Zap, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 interface Props {
   campaign: Campaign;
   onRefresh: () => void;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 function deliveryLabel(status: string, spend: number): string {
@@ -33,7 +35,7 @@ function Toggle({ active, loading, onToggle, title }: { active: boolean; loading
   );
 }
 
-export default function CampaignRow({ campaign: c, onRefresh }: Props) {
+export default function CampaignRow({ campaign: c, onRefresh, isSelected = false, onToggleSelect }: Props) {
   const [localStatus, setLocalStatus] = useState(c.status);
   const [loading, setLoading] = useState(false);
   const [diagnosis, setDiagnosis] = useState('');
@@ -115,9 +117,18 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
   return (
     <>
       {/* ── TABLE ROW (desktop + mobile scroll) ── */}
-      <tr className="border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group">
+      <tr className={`border-b border-white/[0.06] hover:bg-white/[0.03] transition-colors group ${isSelected ? 'bg-blue-500/[0.04]' : ''}`}>
+        {/* Checkbox */}
+        <td className="py-3 pl-4 w-8">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onToggleSelect}
+            className="w-3.5 h-3.5 accent-blue-500 cursor-pointer"
+          />
+        </td>
         {/* Toggle switch */}
-        <td className="py-3 pl-4 pr-2 w-12">
+        <td className="py-3 pl-2 pr-2 w-12">
           <Toggle
             active={isActive}
             loading={loading}
@@ -194,7 +205,7 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
       {/* ── ADSETS EXPANSION ── */}
       {showAdsets && (
         <tr>
-          <td colSpan={9} className="pb-1 px-4 sm:pl-14">
+          <td colSpan={10} className="pb-1 px-4 sm:pl-14">
             {adsets.length === 0 ? (
               <div className="text-center text-white/20 text-xs py-3">Nenhum conjunto encontrado</div>
             ) : (
@@ -242,7 +253,7 @@ export default function CampaignRow({ campaign: c, onRefresh }: Props) {
       {/* ── DIAGNOSIS ── */}
       {showDiag && diagnosis && (
         <tr>
-          <td colSpan={9} className="pb-2 px-4 sm:pl-14">
+          <td colSpan={10} className="pb-2 px-4 sm:pl-14">
             <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 text-xs text-yellow-100/80 leading-relaxed">
               <span className="text-yellow-400 font-bold">🔍 Diagnóstico IA</span><br/>
               {diagnosis}

@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts, isLoggedIn, logout, getGestores, Gestor } from '@/lib/api';
+import { getCampaigns, getActions, Campaign, AgentAction, ACCOUNT_NAMES, getAgentStatus, toggleAgent, updateAgentAccounts, isLoggedIn, logout, getGestores, Gestor, pauseCampaign, activateCampaign, updateBudget } from '@/lib/api';
 import StatCard from '@/components/StatCard';
 import CampaignRow from '@/components/CampaignRow';
 import AgentLog from '@/components/AgentLog';
 import GestorCard from '@/components/GestorCard';
-import { RefreshCw, Bot, ChevronDown, LogOut } from 'lucide-react';
+import { RefreshCw, Bot, ChevronDown, LogOut, TrendingUp } from 'lucide-react';
 
 const ALL_ACCOUNTS = 'all';
 
@@ -27,6 +27,10 @@ export default function Home() {
   const [agentEnabled, setAgentEnabled] = useState<boolean | null>(null);
   const [agentAccounts, setAgentAccounts] = useState<string[]>([]);
   const [togglingAgent, setTogglingAgent] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkScaleInput, setBulkScaleInput] = useState('');
+  const [showBulkScale, setShowBulkScale] = useState(false);
 
   const load = useCallback(async (force = false) => {
     try {
@@ -73,7 +77,57 @@ export default function Home() {
 
   function refresh() {
     setRefreshing(true);
+    setSelectedIds(new Set());
     load(true);
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === listCampaigns.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(listCampaigns.map(c => c.campaign_id)));
+    }
+  }
+
+  async function bulkActivate() {
+    setBulkLoading(true);
+    try {
+      await Promise.all([...selectedIds].map(id => activateCampaign(id).catch(() => {})));
+      refresh();
+    } finally { setBulkLoading(false); }
+  }
+
+  async function bulkPause() {
+    setBulkLoading(true);
+    try {
+      await Promise.all([...selectedIds].map(id => pauseCampaign(id).catch(() => {})));
+      refresh();
+    } finally { setBulkLoading(false); }
+  }
+
+  async function bulkScale() {
+    const pct = parseFloat(bulkScaleInput);
+    if (isNaN(pct) || pct <= 0) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all([...selectedIds].map(id => {
+        const c = campaigns.find(x => x.campaign_id === id);
+        if (!c) return Promise.resolve();
+        const newBudget = Math.round(c.daily_budget * (1 + pct / 100));
+        return updateBudget(id, newBudget).catch(() => {});
+      }));
+      setShowBulkScale(false);
+      setBulkScaleInput('');
+      refresh();
+    } finally { setBulkLoading(false); }
   }
 
   const directorGestor = gestores.find(g => g.is_director);
@@ -248,26 +302,84 @@ export default function Home() {
             Nenhuma campanha {tab === 'active' ? 'ativa' : tab === 'paused' ? 'pausada' : ''}{accountFilter !== ALL_ACCOUNTS ? ` na ${ACCOUNT_NAMES[accountFilter]}` : ''}.
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/10 overflow-x-auto">
-            <table className="w-full min-w-[700px] text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-white/10 bg-white/[0.02]">
-                  {['', 'Campanha', 'Veiculação', 'Leads', 'CPL', 'Orçamento', 'Gasto', 'Impressões', 'CTR'].map((h, i) => (
-                    <th
-                      key={i}
-                      className={`py-2.5 px-3 text-[10px] font-semibold text-white/30 uppercase tracking-wider ${i === 0 ? 'pl-4 w-12' : ''} ${i >= 3 ? 'text-right' : 'text-left'} ${i === 8 ? 'pr-4' : ''}`}
-                    >
-                      {h}
+          <div className="flex flex-col gap-2">
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2 flex-wrap bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5">
+                <span className="text-xs text-white/50 mr-1">{selectedIds.size} selecionada{selectedIds.size > 1 ? 's' : ''}</span>
+                <button onClick={bulkActivate} disabled={bulkLoading}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50">
+                  Ativar todas
+                </button>
+                <button onClick={bulkPause} disabled={bulkLoading}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/5 text-white/50 hover:bg-white/10 transition-colors disabled:opacity-50">
+                  Pausar todas
+                </button>
+                {!showBulkScale ? (
+                  <button onClick={() => setShowBulkScale(true)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors">
+                    <TrendingUp size={11}/> Escalar
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-white/40">+</span>
+                    <input
+                      type="number" min="1" max="500"
+                      value={bulkScaleInput}
+                      onChange={e => setBulkScaleInput(e.target.value)}
+                      placeholder="20"
+                      className="w-16 bg-white/10 text-white text-xs rounded px-2 py-1 focus:outline-none"
+                      autoFocus
+                    />
+                    <span className="text-xs text-white/40">%</span>
+                    <button onClick={bulkScale} disabled={bulkLoading || !bulkScaleInput}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50">
+                      Aplicar
+                    </button>
+                    <button onClick={() => { setShowBulkScale(false); setBulkScaleInput(''); }}
+                      className="text-white/30 hover:text-white/60 text-xs px-1">✕</button>
+                  </div>
+                )}
+                <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/25 hover:text-white/50 text-xs">Limpar</button>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-white/10 overflow-x-auto">
+              <table className="w-full min-w-[740px] text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.02]">
+                    {/* Checkbox select-all */}
+                    <th className="py-2.5 pl-4 w-8">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === listCampaigns.length && listCampaigns.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-3.5 h-3.5 accent-blue-500 cursor-pointer"
+                      />
                     </th>
+                    {['', 'Campanha', 'Veiculação', 'Leads', 'CPL', 'Orçamento', 'Gasto', 'Impressões', 'CTR'].map((h, i) => (
+                      <th
+                        key={i}
+                        className={`py-2.5 px-3 text-[10px] font-semibold text-white/30 uppercase tracking-wider ${i === 0 ? 'w-12' : ''} ${i >= 3 ? 'text-right' : 'text-left'} ${i === 8 ? 'pr-4' : ''}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {listCampaigns.map(c => (
+                    <CampaignRow
+                      key={c.campaign_id}
+                      campaign={c}
+                      onRefresh={refresh}
+                      isSelected={selectedIds.has(c.campaign_id)}
+                      onToggleSelect={() => toggleSelect(c.campaign_id)}
+                    />
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {listCampaigns.map(c => (
-                  <CampaignRow key={c.campaign_id} campaign={c} onRefresh={refresh} />
-                ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       )}
