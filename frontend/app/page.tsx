@@ -92,11 +92,13 @@ export default function Home() {
     ? filteredByGestor
     : filteredByGestor.filter(c => c.account_id === accountFilter);
 
-  const active = filtered.filter(c => c.status === 'ACTIVE');
-  const paused = filtered.filter(c => c.status !== 'ACTIVE');
+  // Só mostra pausadas que tiveram gasto hoje (pausadas sem gasto = dias anteriores)
+  const relevantFiltered = filtered.filter(c => c.status === 'ACTIVE' || c.spend > 0);
+  const active = relevantFiltered.filter(c => c.status === 'ACTIVE');
+  const paused = relevantFiltered.filter(c => c.status !== 'ACTIVE');
 
-  const totalSpend = filtered.reduce((s, c) => s + c.spend, 0);
-  const totalLeads = filtered.reduce((s, c) => s + c.leads, 0);
+  const totalSpend = relevantFiltered.reduce((s, c) => s + c.spend, 0);
+  const totalLeads = relevantFiltered.reduce((s, c) => s + c.leads, 0);
   const avgCpl = totalLeads > 0 ? totalSpend / totalLeads : 0;
   const avgCtr = active.length > 0 ? active.reduce((s, c) => s + c.ctr, 0) / active.length : 0;
 
@@ -110,7 +112,7 @@ export default function Home() {
     );
   }
 
-  const listCampaigns = (tab === 'all' ? filtered : tab === 'active' ? active : paused).sort((a, b) => b.spend - a.spend);
+  const listCampaigns = (tab === 'all' ? relevantFiltered : tab === 'active' ? active : paused).sort((a, b) => b.spend - a.spend);
 
   return (
     <div className="w-full max-w-screen-xl mx-auto px-4 py-6 flex flex-col gap-5">
