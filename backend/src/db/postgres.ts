@@ -94,6 +94,33 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE gestores ADD COLUMN IF NOT EXISTS agent_enabled BOOLEAN DEFAULT false;
   `);
+  // Assign RAMON accounts to IVAN and ADRIANO
+  await pool.query(`
+    INSERT INTO gestor_accounts (gestor_id, account_id, project_name)
+    SELECT g.id, a.account_id, 'RAMON'
+    FROM gestores g
+    CROSS JOIN (VALUES
+      ('act_809590885250558'),
+      ('act_1677889643448352'),
+      ('act_1068494141940786'),
+      ('act_1259981386320730'),
+      ('act_1915057486047147')
+    ) AS a(account_id)
+    WHERE g.name IN ('IVAN', 'ADRIANO')
+    ON CONFLICT DO NOTHING;
+  `);
+  // Assign ZECA accounts to DIOGO and HUEVERTON
+  await pool.query(`
+    INSERT INTO gestor_accounts (gestor_id, account_id, project_name)
+    SELECT g.id, a.account_id, 'ZECA'
+    FROM gestores g
+    CROSS JOIN (VALUES
+      ('act_932647832992759'),
+      ('act_1430896401540194')
+    ) AS a(account_id)
+    WHERE g.name IN ('DIOGO', 'HUEVERTON')
+    ON CONFLICT DO NOTHING;
+  `);
   const client = await pool.connect();
   try {
     await seedGestores(client);

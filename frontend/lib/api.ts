@@ -29,11 +29,21 @@ export interface AgentAction {
 }
 
 export const ACCOUNT_NAMES: Record<string, string> = {
+  // JOTAP
   act_1095859619406442: 'CA 01',
   act_1628949641648813: 'CA 02',
   act_1520081442881968: 'CA 03',
   act_1430948701654012: 'CA 04',
   act_1322469786598233: 'CA 05',
+  // RAMON (IVAN + ADRIANO)
+  act_809590885250558:  'BB 01',
+  act_1677889643448352: 'BB 02',
+  act_1068494141940786: 'RM 01',
+  act_1259981386320730: 'RM 02',
+  act_1915057486047147: 'RM 03',
+  // ZECA (DIOGO + HUEVERTON)
+  act_932647832992759:  'ZC 01',
+  act_1430896401540194: 'ZC 02',
 };
 
 function getToken(): string {
